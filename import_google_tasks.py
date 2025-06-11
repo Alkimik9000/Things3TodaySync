@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import csv
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -23,10 +23,20 @@ CSV_FILE = "today_view.csv"
 TOKEN_FILE = "token.json"
 CREDENTIALS_FILE = "credentials.json"
 
+# Utility to canonicalise titles for reliable comparison
 
-def get_service() -> "googleapiclient.discovery.Resource":
+def canonTitle(title: str) -> str:  # noqa: N802 (keep camelCase rule)
+    """Return a canonical representation of a task title.
+
+    Strips leading/trailing whitespace, collapses internal whitespace, and
+    converts to lowercase so comparisons are case-insensitive. Emojis and
+    other Unicode characters are left intact.
+    """
+    return " ".join(title.strip().split()).lower()
+
+def getService() -> Any:
     """Authorize the user and return a Google Tasks service instance."""
-    creds: Optional[Credentials] = None
+    creds: Any = None
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
 
@@ -39,53 +49,76 @@ def get_service() -> "googleapiclient.discovery.Resource":
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open(TOKEN_FILE, "w") as token:
+            assert creds is not None
             token.write(creds.to_json())
 
     return build("tasks", "v1", credentials=creds)
 
 
-def read_tasks_from_csv(filename: str) -> List[Dict[str, str]]:
+def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
     """Read tasks from a Things3 today_view.csv file."""
-    tasks = []
+    tasks: List[Dict[str, Optional[str]]] = []
     with open(filename, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            title = row.get("ItemName", "").strip('"')
-            notes = row.get("Notes", "").strip('"')
-            due_raw = row.get("DueDate", "").strip('"')
-            due = f"{due_raw}T00:00:00.000Z" if due_raw else None
+            title: str = row.get("ItemName", "").strip('"')
+            notes: str = row.get("Notes", "").strip('"')
+            due_raw: str = row.get("DueDate", "").strip('"')
+            due: Optional[str] = due_raw + "T00:00:00.000Z" if due_raw else None
             tasks.append({"title": title, "notes": notes, "due": due})
     return tasks
 
 
-def insert_tasks(service, tasklist_id: str, tasks: List[Dict[str, str]]) -> None:
-    """Insert tasks into Google Tasks, skipping duplicates by title."""
-    existing_titles = set()
-    response = service.tasks().list(tasklist=tasklist_id).execute()
-    for item in response.get("items", []):
-        existing_titles.add(item.get("title"))
+def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional[str]]]) -> None:
+    """Synchronise Google Tasks list with tasks from CSV.
 
-    for task in tasks:
-        if task["title"] in existing_titles:
-            print(f"Skipping existing task: {task['title']}")
+    1. Insert or update tasks that exist in the CSV but not in Google Tasks.
+    2. Delete tasks from Google Tasks that are no longer present in the CSV.
+    """
+
+    # Build a mapping of existing Google Tasks (canonical title -> id)
+    existing_tasks_response = service.tasks().list(tasklist=tasklist_id).execute()
+    google_tasks: Dict[str, str] = {}
+    for item in existing_tasks_response.get("items", []):
+        title_existing: str = str(item.get("title", ""))
+        task_id: str = str(item.get("id", ""))
+        google_tasks[canonTitle(title_existing)] = task_id
+
+    csv_titles_canonical: set[str] = set(
+        canonTitle(str(task["title"])) for task in csv_tasks if task["title"] is not None
+    )
+
+    # Insert missing tasks
+    for task in csv_tasks:
+        title_current: str = str(task["title"])
+        canonical_current: str = canonTitle(title_current)
+        if canonical_current in google_tasks:
+            print("Skipping existing task: " + title_current)
             continue
 
-        body = {"title": task["title"]}
+        body: Dict[str, Any] = {"title": title_current}
         if task["notes"]:
             body["notes"] = task["notes"]
         if task["due"]:
             body["due"] = task["due"]
         service.tasks().insert(tasklist=tasklist_id, body=body).execute()
-        print(f"Inserted task: {task['title']}")
+        print("Inserted task: " + title_current)
+
+    # Remove tasks that are not in CSV
+    for canonical_existing, task_id in google_tasks.items():
+        if canonical_existing not in csv_titles_canonical:
+            # Fetch original title for logging (optional)
+            service.tasks().delete(tasklist=tasklist_id, task=task_id).execute()
+            print("Deleted task with canonical title: " + canonical_existing)
 
 
 def main() -> None:
     if not os.path.exists(CSV_FILE):
-        raise FileNotFoundError(f"CSV file not found: {CSV_FILE}")
+        raise FileNotFoundError("CSV file not found: " + CSV_FILE)
 
-    service = get_service()
-    tasks = read_tasks_from_csv(CSV_FILE)
-    insert_tasks(service, "@default", tasks)
+    service = getService()
+    tasks: List[Dict[str, Optional[str]]] = readTasksFromCsv(CSV_FILE)
+    syncTasks(service, "@default", tasks)
 
 
 if __name__ == "__main__":
