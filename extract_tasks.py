@@ -96,7 +96,8 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     
     # Get dates (use "activation date" instead of "start date")
     start_date_str = getTaskProperty(index, "activation date")
-    due_date_str = getTaskProperty(index, "due date")
+    # Things3 AppleScript property for deadline is "deadline" (not "due date")
+    due_date_str = getTaskProperty(index, "deadline")
     
     # Get project
     project_script = f'''
