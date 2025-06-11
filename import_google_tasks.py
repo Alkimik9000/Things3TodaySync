@@ -129,6 +129,18 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
             service.tasks().delete(tasklist=tasklist_id, task=info["id"]).execute()
             print("Deleted task with canonical title: " + canonical_existing)
 
+    # ----- Debug output: lists of titles, gated by env var -----
+    if os.getenv("DEBUG_SYNC") == "1":
+        print("\n── CSV canonical titles ──")
+        for t in sorted(csv_titles_canonical):
+            print(t)
+        print("\n── Google canonical titles ──")
+        for t in sorted(google_tasks.keys()):
+            prefix = "DELETE? " if t not in csv_titles_canonical else "KEEP   "
+            print(prefix + t)
+        print("──────────────────────────\n")
+    # ----- End debug output -----
+
     print("Google Tasks sync completed")
 
 
