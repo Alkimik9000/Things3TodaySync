@@ -19,6 +19,12 @@ fi
 # Source the configuration
 . "$CONFIG_FILE"
 
+# Activate Python virtual environment if present
+if [ -d "$SCRIPT_DIR/venv" ]; then
+    # shellcheck source=/dev/null
+    . "$SCRIPT_DIR/venv/bin/activate"
+fi
+
 # Verify required variables are set
 if [ -z "$THINGS_DB" ] || [ -z "$EC2_HOST" ] || [ -z "$EC2_KEY_PATH" ]; then
     echo "❌ Error: Required configuration variables not set in $CONFIG_FILE"
@@ -100,6 +106,15 @@ sync_today_view() {
     local task_count=$(($(wc -l < "$LOCAL_CSV") - 1))  # Subtract header
     log -i "Extracted $task_count tasks to $LOCAL_CSV"
     
+    # Optionally sync tasks with Google Tasks
+    if [ -n "$GOOGLE_TASKS_SYNC" ] && [ "$GOOGLE_TASKS_SYNC" = "1" ]; then
+        if python3 "$SCRIPT_DIR/import_google_tasks.py" >> "$LOG_FILE" 2>&1; then
+            log -s "Google Tasks sync completed"
+        else
+            log -w "Google Tasks sync encountered errors"
+        fi
+    fi
+
     # Upload to EC2
     log -i "Uploading to EC2..."
     if scp -i "$EC2_KEY_PATH" "$LOCAL_CSV" "$EC2_USER@$EC2_HOST:$REMOTE_CSV" >/dev/null 2>&1; then
