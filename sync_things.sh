@@ -72,36 +72,6 @@ log() {
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
 
-# Log function with log level support
-log() {
-    local level="INFO"
-    local message="$1"
-    
-    # Check if first argument is a log level
-    case $1 in
-        -i|--info)    level="INFO"   ; shift ;;
-        -s|--success) level="SUCCESS" ; shift ;;
-        -w|--warn)    level="WARN"   ; shift ;;
-        -e|--error)   level="ERROR"  ; shift ;;
-    esac
-    
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local log_entry="[$timestamp] [$level] ${@:-$message}"
-    
-    # Always log to file
-    echo "$log_entry" >> "$LOG_FILE"
-    
-    # Print to console if running interactively
-    if [ -t 0 ]; then
-        case $level in
-            "SUCCESS") echo -e "\033[0;32m$log_entry\033[0m" ;;
-            "WARN")    echo -e "\033[0;33m$log_entry\033[0m" ;;
-            "ERROR")   echo -e "\033[0;31m$log_entry\033[0m" >&2 ;;
-            *)          echo "$log_entry" ;;
-        esac
-    fi
-}
-
 # Function to test SSH connection
 test_ssh_connection() {
     if ! ssh -q -i "$EC2_KEY_PATH" -o BatchMode=yes -o ConnectTimeout=5 "$EC2_USER@$EC2_HOST" exit; then

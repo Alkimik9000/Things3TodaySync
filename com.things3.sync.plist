@@ -21,7 +21,8 @@
     
     <key>WorkingDirectory</key>
     <string>$HOME/Development/Things3TodaySync</string>
-    
+
+    <!-- Set environment variables if needed -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -44,13 +45,6 @@
     <!-- Ensure clean process management -->
     <key>AbandonProcessGroup</key>
     <true/>
-    
-    <!-- Set environment variables if needed -->
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-    </dict>
     
     <!-- Run with low priority -->
     <key>LowPriorityIO</key>

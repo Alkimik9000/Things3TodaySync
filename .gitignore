@@ -62,3 +62,7 @@ apple-shortcuts/Images/
 *.apk
 *.ipynb_checkpoints/
 today_view.csv
+
+# Google Tasks credentials
+credentials.json
+token.json

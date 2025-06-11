@@ -124,6 +124,26 @@ Run a single sync operation:
   ssh -i /path/to/your/key $EC2_USER@$EC2_HOST "cat $REMOTE_CSV"
   ```
 
+## Import to Google Tasks
+
+You can push the contents of `today_view.csv` directly to Google Tasks. First
+install the required Python packages:
+
+```bash
+pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+```
+
+Download OAuth credentials from the Google Cloud Console and save the file as
+`credentials.json` in this directory. Then run:
+
+```bash
+python3 import_google_tasks.py
+```
+
+The first run opens a browser window for authorization and stores a
+`token.json` for reuse. Each CSV entry will be inserted as a task unless a task
+with the same title already exists.
+
 ## Troubleshooting
 
 ### Common Issues
