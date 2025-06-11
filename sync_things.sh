@@ -99,6 +99,9 @@ log() {
             "ERROR")   echo -e "\033[0;31m$log_entry\033[0m" >&2 ;;
             *)          echo "$log_entry" ;;
         esac
+    fi
+}
+
 # Function to test SSH connection
 test_ssh_connection() {
     if ! ssh -q -i "$EC2_KEY_PATH" -o BatchMode=yes -o ConnectTimeout=5 "$EC2_USER@$EC2_HOST" exit; then
