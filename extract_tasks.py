@@ -9,7 +9,6 @@ import subprocess
 import csv
 import sys
 from typing import List, Dict
-import re
 
 
 def runAppleScript(script: str) -> str:
@@ -63,29 +62,34 @@ def getTaskTags(index: int) -> str:
     return tags
 
 
-def formatDate(date_str: str) -> str:
-    """Convert AppleScript date to YYYY-MM-DD format."""
-    if not date_str:
+def getFormattedDate(index: int, property_name: str) -> str:
+    """Return Things3 date property as YYYY-MM-DD or empty string.
+
+    Uses AppleScript to extract year / month / day components directly so it
+    works regardless of macOS locale.
+    """
+    script = f'''
+    tell application "Things3"
+        set theDate to {property_name} of item {index} of to dos of list "Today"
+        if theDate is missing value then
+            return ""
+        else
+            set y to year of theDate as integer
+            set m to month of theDate as integer
+            set d to day of theDate as integer
+            return (y as string) & "," & (m as string) & "," & (d as string)
+        end if
+    end tell
+    '''
+    raw_result = runAppleScript(script)
+    if not raw_result:
         return ""
-    
-    # AppleScript returns dates like "Monday, June 10, 2025 at 12:00:00 AM"
-    # Extract date components using regex
-    match = re.search(r'(\w+), (\w+) (\d+), (\d{4})', date_str)
-    if match:
-        month_name = match.group(2)
-        day = int(match.group(3))
-        year = int(match.group(4))
-        
-        # Convert month name to number
-        months = {
-            'January': 1, 'February': 2, 'March': 3, 'April': 4,
-            'May': 5, 'June': 6, 'July': 7, 'August': 8,
-            'September': 9, 'October': 10, 'November': 11, 'December': 12
-        }
-        month = months.get(month_name, 1)
-        
-        return f"{year:04d}-{month:02d}-{day:02d}"
-    return ""
+    try:
+        y_str, m_str, d_str = [part.strip() for part in raw_result.split(",")]
+        y, m, d = int(y_str), int(m_str), int(d_str)
+        return ("%04d" % y) + "-" + ("%02d" % m) + "-" + ("%02d" % d)
+    except ValueError:
+        return ""
 
 
 def getTaskDetails(index: int) -> Dict[str, str]:
@@ -94,10 +98,9 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     title = getTaskProperty(index, "name")
     notes = getTaskProperty(index, "notes")
     
-    # Get dates (use "activation date" instead of "start date")
-    start_date_str = getTaskProperty(index, "activation date")
-    # Things3 AppleScript property for deadline is "deadline" (not "due date")
-    due_date_str = getTaskProperty(index, "deadline")
+    # Get dates using locale-independent ISO formatting
+    start_date_str = getFormattedDate(index, "activation date")
+    due_date_str = getFormattedDate(index, "deadline")
     
     # Get project
     project_script = f'''
@@ -121,8 +124,8 @@ def getTaskDetails(index: int) -> Dict[str, str]:
         "title": title,
         "notes": notes,
         "project": project,
-        "start_date": formatDate(start_date_str),
-        "due_date": formatDate(due_date_str),
+        "start_date": start_date_str,
+        "due_date": due_date_str,
         "tags": tags
     }
 
