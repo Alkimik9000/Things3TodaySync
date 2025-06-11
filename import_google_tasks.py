@@ -78,11 +78,14 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
 
     # Build a mapping of existing Google Tasks (canonical title -> id)
     existing_tasks_response = service.tasks().list(tasklist=tasklist_id).execute()
-    google_tasks: Dict[str, str] = {}
+    google_tasks: Dict[str, Dict[str, Any]] = {}
     for item in existing_tasks_response.get("items", []):
         title_existing: str = str(item.get("title", ""))
-        task_id: str = str(item.get("id", ""))
-        google_tasks[canonTitle(title_existing)] = task_id
+        google_tasks[canonTitle(title_existing)] = {
+            "id": item.get("id", ""),
+            "due": item.get("due"),
+            "notes": item.get("notes") or "",
+        }
 
     csv_titles_canonical: set[str] = set(
         canonTitle(str(task["title"])) for task in csv_tasks if task["title"] is not None
@@ -93,7 +96,23 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
         title_current: str = str(task["title"])
         canonical_current: str = canonTitle(title_current)
         if canonical_current in google_tasks:
-            print("Skipping existing task: " + title_current)
+            existing_info = google_tasks[canonical_current]
+            body_update: Dict[str, Any] = {}
+            # Compare due date
+            if task["due"] and task["due"] != existing_info["due"]:
+                body_update["due"] = task["due"]
+            # Compare notes
+            if task["notes"] and task["notes"] != existing_info["notes"]:
+                body_update["notes"] = task["notes"]
+            if body_update:
+                service.tasks().patch(
+                    tasklist=tasklist_id,
+                    task=existing_info["id"],
+                    body=body_update,
+                ).execute()
+                print("Updated task: " + title_current)
+            else:
+                print("Skipping existing task (no changes): " + title_current)
             continue
 
         body: Dict[str, Any] = {"title": title_current}
@@ -105,11 +124,12 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
         print("Inserted task: " + title_current)
 
     # Remove tasks that are not in CSV
-    for canonical_existing, task_id in google_tasks.items():
+    for canonical_existing, info in google_tasks.items():
         if canonical_existing not in csv_titles_canonical:
-            # Fetch original title for logging (optional)
-            service.tasks().delete(tasklist=tasklist_id, task=task_id).execute()
+            service.tasks().delete(tasklist=tasklist_id, task=info["id"]).execute()
             print("Deleted task with canonical title: " + canonical_existing)
+
+    print("Google Tasks sync completed")
 
 
 def main() -> None:
