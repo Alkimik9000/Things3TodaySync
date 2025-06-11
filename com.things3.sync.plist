@@ -16,11 +16,11 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>cd "$HOME/Development/Things3-Android-Companion-App-Detailed" &amp;&amp; source "$HOME/.bash_profile" &amp;&amp; "./sync_things.sh" &gt;/dev/null 2&gt;&amp;1</string>
+        <string>cd "$HOME/Development/Things3TodaySync" &amp;&amp; source "$HOME/.bash_profile" &amp;&amp; "./sync_things.sh" &gt;/dev/null 2&gt;&amp;1</string>
     </array>
     
     <key>WorkingDirectory</key>
-    <string>$HOME/Development/Things3-Android-Companion-App-Detailed</string>
+    <string>$HOME/Development/Things3TodaySync</string>
     
     <key>EnvironmentVariables</key>
     <dict>

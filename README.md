@@ -22,8 +22,8 @@ A lightweight utility to sync your Things3 Today view with a remote server.
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/Things3-Android-Companion-App-Detailed.git
-   cd Things3-Android-Companion-App-Detailed
+   git clone https://github.com/yourusername/Things3TodaySync.git
+   cd Things3TodaySync
    ```
 
 2. Run the setup script and follow the prompts:
@@ -36,8 +36,8 @@ A lightweight utility to sync your Things3 Today view with a remote server.
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/Things3-Android-Companion-App-Detailed.git
-   cd Things3-Android-Companion-App-Detailed
+   git clone https://github.com/yourusername/Things3TodaySync.git
+   cd Things3TodaySync
    ```
 
 2. Copy the example configuration and update it:
