@@ -62,7 +62,7 @@ def getTaskTags(index: int) -> str:
     return tags
 
 
-def getFormattedDate(index: int, property_name: str) -> str:
+def getFormattedDate(index: int, primary_prop: str, fallback_prop: str | None = None) -> str:
     """Return Things3 date property as YYYY-MM-DD or empty string.
 
     Uses AppleScript to extract year / month / day components directly so it
@@ -70,7 +70,7 @@ def getFormattedDate(index: int, property_name: str) -> str:
     """
     script = f'''
     tell application "Things3"
-        set theDate to {property_name} of item {index} of to dos of list "Today"
+        set theDate to {primary_prop} of item {index} of to dos of list "Today"
         if theDate is missing value then
             return ""
         else
@@ -82,6 +82,10 @@ def getFormattedDate(index: int, property_name: str) -> str:
     end tell
     '''
     raw_result = runAppleScript(script)
+    if not raw_result and fallback_prop:
+        # Try fallback AppleScript property
+        script_fallback = script.replace(primary_prop, fallback_prop)
+        raw_result = runAppleScript(script_fallback)
     if not raw_result:
         return ""
     try:
@@ -100,7 +104,7 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     
     # Get dates using locale-independent ISO formatting
     start_date_str = getFormattedDate(index, "activation date")
-    due_date_str = getFormattedDate(index, "deadline")
+    due_date_str = getFormattedDate(index, "due date", "deadline")
     
     # Get project
     project_script = f'''
