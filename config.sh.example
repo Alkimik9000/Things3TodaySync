@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Configuration for Things3 Sync Script
+# Copy this file to 'config.sh' and update the values below
+
+# Local directories
+BACKUP_DIR="$HOME/ThingsBackups"  # Where to store local backups
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # Directory of this script
+
+# ===== REQUIRED SETTINGS =====
+
+# EC2 Connection
+EC2_USER="ubuntu"                     # SSH username for EC2
+EC2_HOST="your-ec2-ip-or-hostname"   # EC2 instance hostname or IP
+EC2_KEY_PATH="$HOME/.ssh/your-key.pem" # Path to SSH private key
+
+# Remote file paths
+REMOTE_DIR="/path/on/ec2/things-api"  # Base directory on EC2
+REMOTE_CSV="$REMOTE_DIR/today_view.csv" # Where to store the CSV on the server
+
+# ===== LOCAL SETTINGS =====
+
+# Local files
+LOCAL_CSV="today_view.csv"            # Local CSV file with today's tasks
+EXTRACT_SCRIPT="extract_today_tasks_simple.py"  # Script to extract tasks from Things3
+LOG_FILE="$SCRIPT_DIR/things_sync.log" # Log file location
+
+# ===== EXPORT VARIABLES =====
+# (Don't modify these directly)
+
+# Export all variables for use in other scripts
+export EC2_USER EC2_HOST EC2_KEY_PATH \
+       REMOTE_DIR REMOTE_CSV \
+       LOCAL_CSV EXTRACT_SCRIPT SCRIPT_DIR LOG_FILE

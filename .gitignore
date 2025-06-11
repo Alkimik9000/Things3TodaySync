@@ -1,0 +1,63 @@
+# General
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.old
+*.orig
+*.pyc
+*.pyo
+__pycache__/
+.idea/
+.vscode/
+.env*
+*.iml
+
+# Configuration
+config.sh
+!config.sh.example
+
+# Local overrides
+local.*
+
+# Archive directory
+archive/
+!archive/.gitkeep
+
+# Android
+android-app/app/build/
+android-app/app/.gradle/
+android-app/.gradle/
+android-app/.idea/
+android-app/local.properties
+android-app/app/release/
+android-app/app/debug/
+android-app/app/.cxx/
+
+# Server
+server-graphql-api/.env*
+server-graphql-api/db/
+server-graphql-api/log/
+server-graphql-api/tmp/
+
+# Apple Shortcuts
+apple-shortcuts/Images/
+
+# Misc
+*.sqlite
+*.db
+*.db-journal
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+*.bak
+*.backup
+*.swp
+*.swo
+*.apk
+*.ipynb_checkpoints/
