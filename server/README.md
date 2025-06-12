@@ -22,3 +22,13 @@ cd server
 python3 process_english_tasks.py
 ```
 
+To keep processing tasks automatically on the server, schedule the wrapper
+script using `cron`. It loads environment variables from `.env` and writes a
+log file `english_tasks.log`:
+
+```bash
+*/10 * * * * /path/to/repo/server/run_processor.sh
+```
+
+This example runs every ten minutes.
+

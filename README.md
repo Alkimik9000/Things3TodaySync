@@ -162,6 +162,9 @@ cd server
 python3 process_english_tasks.py
 ```
 
+For continuous processing on the server, schedule `server/run_processor.sh`
+with `cron` so it runs periodically and logs output to `english_tasks.log`.
+
 ## Troubleshooting
 
 ### Common Issues
