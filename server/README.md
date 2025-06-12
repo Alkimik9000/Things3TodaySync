@@ -4,9 +4,12 @@ This directory contains scripts intended to run on the remote EC2 instance.
 
 ## `process_english_tasks.py`
 
-Detects tasks written in English from your Google Tasks list, translates them
-into Hebrew using the OpenAI API and stores the original and translated titles
-in `english_tasks.csv`. The CSV is uploaded to the EC2 server after processing.
+Detects tasks with English titles from your Google Tasks `@default` list. Each
+task's details are appended to `fetched_tasks.csv` and then removed from Google
+Tasks. The title is translated to Hebrew in GTD style with a short phrase and
+two emojis using the OpenAI API. The result is saved in `processed_tasks.csv`.
+Both CSVs reside in this directory and can optionally be uploaded to an EC2
+server.
 
 ### Requirements
 Install the following dependencies on the EC2 instance:
@@ -16,7 +19,7 @@ Install the following dependencies on the EC2 instance:
   (install with `pip3 install --user google-api-python-client google-auth-oauthlib openai`)
 - `scp` command from the `openssh-client` package
 - OAuth credentials (`credentials.json`) and token (`token.json`) placed in this directory. Example files `credentials.json.example` and `token.json.example` are provided.
-- Environment variables configured in a `.env` file. Start by copying `env.example` to `.env` and update the values.
+- Environment variables configured in a `.env` file. Start by copying `env.example` to `.env` and update the values. Optional variables `REMOTE_FETCHED_CSV` and `REMOTE_PROCESSED_CSV` can be set if you want the CSVs uploaded via `scp`.
 
 ### Running
 
