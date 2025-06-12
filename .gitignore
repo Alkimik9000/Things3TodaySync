@@ -66,5 +66,17 @@ today_view.csv
 # Google Tasks credentials
 credentials.json
 token.json
+server/credentials.json
+server/token.json
+
+# Ignore all files in server/ except example files
+server/*
+!server/README.md
+!server/credentials.json.example
+!server/token.json.example
+!server/process_english_tasks.py
+!server/run_processor.sh
+!server/env.example
+
+# Python virtual environment
 venv/
-credentials.json
