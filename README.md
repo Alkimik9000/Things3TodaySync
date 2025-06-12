@@ -144,6 +144,15 @@ The first run opens a browser window for authorization and stores a
 `token.json` for reuse. Each CSV entry will be inserted as a task unless a task
 with the same title already exists.
 
+## Process English Google Tasks
+
+`process_english_tasks.py` scans your Google Tasks list for titles containing
+English text. Detected tasks are removed, translated into Hebrew using the
+OpenAI API and stored with any due date in `english_tasks.csv`. The CSV is
+automatically uploaded to your configured EC2 instance. Before running make
+sure the environment variables `OPENAI_API_KEY`, `EC2_HOST`, `EC2_KEY_PATH` and
+`REMOTE_ENGLISH_CSV` are set.
+
 ## Troubleshooting
 
 ### Common Issues
