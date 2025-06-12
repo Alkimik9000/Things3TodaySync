@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Configuration for Things3 Sync Script
+# Copy this file to 'config.sh' and update the values below
+
+# Local directories
+BACKUP_DIR="$HOME/ThingsBackups"  # Where to store local backups
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # Directory of this script
+
+# ===== REQUIRED SETTINGS =====
+
+# EC2 Connection
+EC2_USER="ubuntu"                     # SSH username for EC2
+EC2_HOST="your-ec2-ip-or-hostname"   # EC2 instance hostname or IP
+EC2_KEY_PATH="$HOME/.ssh/your-key.pem" # Path to SSH private key
+
+# Remote file paths
+REMOTE_DIR="/path/on/ec2/things-api"  # Base directory on EC2
+REMOTE_CSV="$REMOTE_DIR/today_view.csv" # Where to store the CSV on the server
+
+# ===== LOCAL SETTINGS =====
+
+# Local files
+# CSV filenames
+LOCAL_CSV="today_view.csv"            # Today's tasks
+UPCOMING_CSV="upcoming_tasks.csv"     # Upcoming tasks
+ANYTIME_CSV="anytime_tasks.csv"       # Anytime tasks
+# Path to Things3 database (default for macOS)
+THINGS_DB="$HOME/Library/Group Containers/JLMPQHK86H.com.culturedcode.ThingsMac/ThingsData-BQ2NY/Things Database.thingsdatabase/main.sqlite"
+EXTRACT_SCRIPT="extract_tasks.py"  # Script to extract tasks from Things3
+# Set to 1 to enable Google Tasks synchronisation
+GOOGLE_TASKS_SYNC="1"
+LOG_FILE="$SCRIPT_DIR/things_sync.log" # Log file location
+
+# ===== EXPORT VARIABLES =====
+# (Don't modify these directly)
+
+# Export all variables for use in other scripts
+export EC2_USER EC2_HOST EC2_KEY_PATH \
+       REMOTE_DIR REMOTE_CSV \
+       THINGS_DB LOCAL_CSV UPCOMING_CSV ANYTIME_CSV \
+       EXTRACT_SCRIPT GOOGLE_TASKS_SYNC SCRIPT_DIR LOG_FILE
