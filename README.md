@@ -5,6 +5,8 @@ A lightweight utility to sync your Things3 Today view with a remote server.
 ## Features
 
 - Automatic extraction of Today's tasks from Things3
+- Optional export of Upcoming tasks to ``upcoming_tasks.csv``
+- Optional export of Anytime tasks to ``anytime_tasks.csv``
 - Secure sync to a remote server every minute
 - Detailed logging for monitoring
 - macOS launch agent for continuous operation
@@ -100,6 +102,16 @@ launchctl unload ~/Library/LaunchAgents/com.things3.sync.plist
 Run a single sync operation:
 ```bash
 ./sync_things.sh
+```
+
+Generate ``upcoming_tasks.csv`` manually:
+```bash
+python3 extract_upcoming.py
+```
+
+Generate ``anytime_tasks.csv`` manually:
+```bash
+python3 extract_anytime.py
 ```
 
 ### Logs and Monitoring
