@@ -9,11 +9,14 @@ into Hebrew using the OpenAI API and stores the original and translated titles
 in `english_tasks.csv`. The CSV is uploaded to the EC2 server after processing.
 
 ### Requirements
-- Python 3 with `google-api-python-client`, `google-auth-oauthlib` and
-  `openai` installed
-- OAuth credentials (`credentials.json`) and token (`token.json`) placed in this
-  directory
-- Environment variables as shown in `env.example`
+Install the following dependencies on the EC2 instance:
+
+- `python3` and `python3-pip` (install with `sudo apt install python3 python3-pip`)
+- Python packages: `google-api-python-client`, `google-auth-oauthlib`, `openai`
+  (install with `pip3 install --user google-api-python-client google-auth-oauthlib openai`)
+- `scp` command from the `openssh-client` package
+- OAuth credentials (`credentials.json`) and token (`token.json`) placed in this directory. Example files `credentials.json.example` and `token.json.example` are provided.
+- Environment variables configured in a `.env` file. Start by copying `env.example` to `.env` and update the values.
 
 ### Running
 
