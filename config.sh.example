@@ -16,8 +16,7 @@ EC2_KEY_PATH="$HOME/.ssh/your-key.pem" # Path to SSH private key
 
 # Remote file paths
 REMOTE_DIR="/path/on/ec2/things-api"  # Base directory on EC2
-REMOTE_CSV="$REMOTE_DIR/today_view.csv"       # Where to store the Today view CSV
-REMOTE_ENGLISH_CSV="$REMOTE_DIR/english_tasks.csv" # English tasks processed by LLM
+REMOTE_CSV="$REMOTE_DIR/today_view.csv" # Where to store the CSV on the server
 
 # ===== LOCAL SETTINGS =====
 
@@ -35,5 +34,5 @@ LOG_FILE="$SCRIPT_DIR/things_sync.log" # Log file location
 
 # Export all variables for use in other scripts
 export EC2_USER EC2_HOST EC2_KEY_PATH \
-       REMOTE_DIR REMOTE_CSV REMOTE_ENGLISH_CSV \
+       REMOTE_DIR REMOTE_CSV \
        THINGS_DB LOCAL_CSV EXTRACT_SCRIPT GOOGLE_TASKS_SYNC SCRIPT_DIR LOG_FILE

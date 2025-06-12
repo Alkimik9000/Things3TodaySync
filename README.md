@@ -144,27 +144,6 @@ The first run opens a browser window for authorization and stores a
 `token.json` for reuse. Each CSV entry will be inserted as a task unless a task
 with the same title already exists.
 
-## Process English Google Tasks
-
-The `server` directory contains scripts that run on your EC2 instance. The main
-entry point is `server/process_english_tasks.py` which scans your Google Tasks
-list for titles containing English text. Detected tasks are removed, translated
-into Hebrew using the OpenAI API and stored with any due date in
-`english_tasks.csv`. The CSV is automatically uploaded to the server.
-
-Copy your Google OAuth `credentials.json` and `token.json` into the `server`
-folder and create an `.env` file based on `server/env.example` with the required
-variables (`OPENAI_API_KEY`, `EC2_HOST`, `EC2_KEY_PATH`, `EC2_USER` and
-`REMOTE_ENGLISH_CSV`). Run the script from within the `server` directory:
-
-```bash
-cd server
-python3 process_english_tasks.py
-```
-
-For continuous processing on the server, schedule `server/run_processor.sh`
-with `cron` so it runs periodically and logs output to `english_tasks.log`.
-
 ## Troubleshooting
 
 ### Common Issues
