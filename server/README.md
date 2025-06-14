@@ -15,8 +15,8 @@ an EC2 server.
 Install the following dependencies on the EC2 instance:
 
 - `python3` and `python3-pip` (install with `sudo apt install python3 python3-pip`)
-- Python packages: `google-api-python-client`, `google-auth-oauthlib`, `openai`
-  (install with `pip3 install --user google-api-python-client google-auth-oauthlib openai`)
+- Python packages: `google-api-python-client`, `google-auth-oauthlib`, `openai`, `pandas`
+  (install with `pip3 install --user google-api-python-client google-auth-oauthlib openai pandas`)
 - `scp` command from the `openssh-client` package
 - OAuth credentials (`credentials.json`) and token (`token.json`) placed in this directory. Example files `credentials.json.example` and `token.json.example` are provided.
 - Environment variables configured in a `.env` file. Start by copying `env.example` to `.env` and update the values. Optional variables `REMOTE_FETCHED_CSV` and `REMOTE_PROCESSED_CSV` can be set if you want the CSVs uploaded via `scp`.

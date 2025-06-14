@@ -6,7 +6,7 @@ This version uses parallel processing to improve performance.
 """
 
 import subprocess
-import csv
+import pandas as pd
 import os
 import sys
 import time
@@ -203,30 +203,34 @@ def extractUpcomingTasks() -> List[Dict[str, str]]:
 
 def writeToCsv(
     tasks: List[Dict[str, str]],
-    filename: str = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv"),
+    filename: str = os.path.join(OUTPUT_DIR, 'upcoming_tasks.csv'),
 ) -> None:
-    """Write tasks to CSV file in the expected format."""
-    with open(filename, "w", newline="", encoding="utf-8") as csvfile:
-        fieldnames = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "Tags"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for task in tasks:
-            # Clean up notes - replace newlines with spaces
-            notes = task["notes"].replace("\n", " ").replace("\r", " ")
-            
-            # Format row with proper escaping
-            row = {
-                "ItemName": '"' + task["title"].replace('"', '""') + '"',
-                "ItemType": '"Task"',
-                "ResidesWithin": '"' + task["project"].replace('"', '""') + '"',
-                "Notes": '"' + notes.replace('"', '""') + '"' if notes else '""',
-                "ToDoDate": '"' + task["start_date"] + '"' if task["start_date"] else '""',
-                "DueDate": '"' + task["due_date"] + '"' if task["due_date"] else '""',
-                "Tags": '"' + task["tags"].replace('"', '""') + '"' if task["tags"] else '""'
-            }
-            writer.writerow(row)
+    """Write tasks to CSV file using pandas."""
 
+    rows = []
+    for task in tasks:
+        notes = task['notes'].replace('\n', ' ').replace('\r', ' ')
+        rows.append({
+            'ItemName': task['title'],
+            'ItemType': 'Task',
+            'ResidesWithin': task['project'],
+            'Notes': notes,
+            'ToDoDate': task['start_date'],
+            'DueDate': task['due_date'],
+            'Tags': task['tags'],
+        })
+
+    df = pd.DataFrame(rows, columns=[
+        'ItemName',
+        'ItemType',
+        'ResidesWithin',
+        'Notes',
+        'ToDoDate',
+        'DueDate',
+        'Tags',
+    ])
+
+    df.to_csv(filename, index=False, quoting=1)
 
 def main():
     """Main function with error handling and timing."""

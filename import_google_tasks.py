@@ -9,7 +9,7 @@ Cloud Console) and the authorization token is stored in ``secrets/token.json``.
 
 from __future__ import annotations
 
-import csv
+import pandas as pd
 import os
 from typing import List, Dict, Optional, Any
 
@@ -56,18 +56,16 @@ def getService() -> Any:
 
 
 def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
-    """Read tasks from a Things3 today_view.csv file."""
+    """Read tasks from a Things3 today_view.csv file using pandas."""
+    df = pd.read_csv(filename)
     tasks: List[Dict[str, Optional[str]]] = []
-    with open(filename, newline="", encoding="utf-8") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            title: str = row.get("ItemName", "").strip('"')
-            notes: str = row.get("Notes", "").strip('"')
-            due_raw: str = row.get("DueDate", "").strip('"')
-            due: Optional[str] = due_raw + "T00:00:00.000Z" if due_raw else None
-            tasks.append({"title": title, "notes": notes, "due": due})
+    for _, row in df.iterrows():
+        title = str(row.get('ItemName', ''))
+        notes = str(row.get('Notes', ''))
+        due_raw = str(row.get('DueDate', ''))
+        due = due_raw + 'T00:00:00.000Z' if due_raw else None
+        tasks.append({'title': title, 'notes': notes, 'due': due})
     return tasks
-
 
 def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional[str]]]) -> None:
     """Synchronise Google Tasks list with tasks from CSV.
