@@ -8,8 +8,8 @@ Detects tasks with English titles from your Google Tasks `@default` list. Each
 task's details are appended to `fetched_tasks.csv` and then removed from Google
 Tasks. The title is translated to Hebrew in GTD style with a short phrase and
 two emojis using the OpenAI API. The result is saved in `processed_tasks.csv`.
-Both CSVs reside in this directory and can optionally be uploaded to an EC2
-server.
+Both CSVs are written under `server/outputs` and can optionally be uploaded to
+an EC2 server.
 
 ### Requirements
 Install the following dependencies on the EC2 instance:
