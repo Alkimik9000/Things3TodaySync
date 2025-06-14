@@ -8,7 +8,18 @@ This version uses a simpler approach to avoid AppleScript syntax issues.
 import subprocess
 import csv
 import sys
+import re
 from typing import List, Dict
+
+
+_ENG_LETTER_RE = re.compile(r"[A-Za-z]")
+
+
+def is_pure_english(text: str) -> bool:
+    """Return True if ``text`` contains only ASCII characters and at least
+    one English letter."""
+
+    return bool(text) and text.isascii() and bool(_ENG_LETTER_RE.search(text))
 
 
 def runAppleScript(script: str) -> str:
@@ -143,6 +154,9 @@ def extractTodayTasks() -> List[Dict[str, str]]:
     for i in range(1, task_count + 1):
         print(f"Extracting task {i}/{task_count}...", end="\r")
         task = getTaskDetails(i)
+        if is_pure_english(task["title"]):
+            print(f"Skipping English-only task: {task['title']}")
+            continue
         tasks.append(task)
     
     print()  # New line after progress
