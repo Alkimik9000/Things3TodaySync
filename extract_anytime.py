@@ -7,7 +7,7 @@ Extract tasks from the "Anytime" list in Things3 where both the start date and
 """
 
 import subprocess
-import csv
+import pandas as pd
 import os
 import sys
 from typing import List, Dict
@@ -150,24 +150,34 @@ def writeToCsv(
     tasks: List[Dict[str, str]],
     filename: str = os.path.join(OUTPUT_DIR, "anytime_tasks.csv"),
 ) -> None:
-    """Write the given tasks to a CSV file."""
-    with open(filename, "w", newline="", encoding="utf-8") as csvfile:
-        fieldnames = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "Tags"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+    """Write the given tasks to a CSV file using pandas."""
 
-        for task in tasks:
-            notes = task["notes"].replace("\n", " ").replace("\r", " ")
-            row = {
-                "ItemName": '"' + task["title"].replace('"', '""') + '"',
-                "ItemType": '"Task"',
-                "ResidesWithin": '"' + task["project"].replace('"', '""') + '"',
-                "Notes": '"' + notes.replace('"', '""') + '"' if notes else '""',
-                "ToDoDate": '"' + task["start_date"] + '"' if task["start_date"] else '""',
-                "DueDate": '"' + task["due_date"] + '"' if task["due_date"] else '""',
-                "Tags": '"' + task["tags"].replace('"', '""') + '"' if task["tags"] else '""',
+    rows = []
+    for task in tasks:
+        notes = task["notes"].replace("\n", " ").replace("\r", " ")
+        rows.append(
+            {
+                "ItemName": task["title"],
+                "ItemType": "Task",
+                "ResidesWithin": task["project"],
+                "Notes": notes,
+                "ToDoDate": task["start_date"],
+                "DueDate": task["due_date"],
+                "Tags": task["tags"],
             }
-            writer.writerow(row)
+        )
+
+    df = pd.DataFrame(rows, columns=[
+        "ItemName",
+        "ItemType",
+        "ResidesWithin",
+        "Notes",
+        "ToDoDate",
+        "DueDate",
+        "Tags",
+    ])
+
+    df.to_csv(filename, index=False, quoting=1)
 
 
 def main() -> None:

@@ -29,7 +29,7 @@ A lightweight utility to sync your Things3 Today view with Google Tasks.
 2. Set up Python dependencies:
 
    ```bash
-   pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+   pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas
    ```
 
 3. Set up Google OAuth credentials:
@@ -181,7 +181,7 @@ The sync script automatically handles Google Tasks integration when `GOOGLE_TASK
 4. **Python Dependencies**
    - Ensure all required packages are installed:
      ```bash
-     pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+    pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas
      ```
 
 

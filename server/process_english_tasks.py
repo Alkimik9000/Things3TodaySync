@@ -12,7 +12,7 @@ instance via ``scp``.
 
 from __future__ import annotations
 
-import csv
+import pandas as pd
 import os
 import re
 import subprocess
@@ -86,21 +86,14 @@ def next_task_number(csv_file: str) -> int:
     """Return the next sequential task number for ``csv_file``."""
     if not os.path.exists(csv_file):
         return 1
-    with open(csv_file, newline="", encoding="utf-8") as f:
-        return sum(1 for _ in csv.DictReader(f)) + 1
-
+    df = pd.read_csv(csv_file)
+    return len(df) + 1
 
 def append_rows(csv_file: str, rows: List[Dict[str, Optional[str]]]) -> None:
-    """Append ``rows`` to ``csv_file``, writing a header if needed."""
-    file_exists = os.path.exists(csv_file)
-    with open(csv_file, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["TaskNumber", "TaskTitle", "TaskNotes", "DueDate"]
-        )
-        if not file_exists:
-            writer.writeheader()
-        writer.writerows(rows)
-
+    """Append ``rows`` to ``csv_file``, writing a header if needed using pandas."""
+    header = not os.path.exists(csv_file)
+    df = pd.DataFrame(rows, columns=['TaskNumber', 'TaskTitle', 'TaskNotes', 'DueDate'])
+    df.to_csv(csv_file, mode='a', header=header, index=False)
 
 def upload_to_ec2(local_path: str, remote_env: str) -> None:
     """Upload ``local_path`` to EC2 using ``scp`` if ``remote_env`` is set."""
