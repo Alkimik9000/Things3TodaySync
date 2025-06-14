@@ -61,11 +61,13 @@ apple-shortcuts/Images/
 *.swo
 *.apk
 *.ipynb_checkpoints/
-today_view.csv
+# CSV outputs
+outputs/*.csv
+!outputs/.gitkeep
 
 # Google Tasks credentials
-credentials.json
-token.json
+secrets/*.json
+!secrets/.gitkeep
 server/credentials.json
 server/token.json
 

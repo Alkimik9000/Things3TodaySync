@@ -7,6 +7,7 @@ This version uses parallel processing to improve performance.
 
 import subprocess
 import csv
+import os
 import sys
 import time
 from typing import List, Dict
@@ -15,6 +16,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Configuration
 MAX_WORKERS = 12  # Number of concurrent AppleScript processes
 BATCH_SIZE = 10   # Number of tasks to process in each batch
+
+OUTPUT_DIR = "outputs"
 
 
 
@@ -198,7 +201,10 @@ def extractUpcomingTasks() -> List[Dict[str, str]]:
     return all_tasks
 
 
-def writeToCsv(tasks: List[Dict[str, str]], filename: str = "upcoming_tasks.csv"):
+def writeToCsv(
+    tasks: List[Dict[str, str]],
+    filename: str = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv"),
+) -> None:
     """Write tasks to CSV file in the expected format."""
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
         fieldnames = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "Tags"]
@@ -234,9 +240,11 @@ def main():
             return
             
         writeToCsv(tasks)
-        
+
         elapsed = time.time() - start_time
-        print(f"\n✅ Successfully wrote {len(tasks)} tasks to upcoming_tasks.csv")
+        print(
+            f"\n✅ Successfully wrote {len(tasks)} tasks to {os.path.join(OUTPUT_DIR, 'upcoming_tasks.csv')}"
+        )
         print(f"Total processing time: {elapsed:.2f} seconds")
         print(f"Average time per task: {elapsed/len(tasks):.3f} seconds")
         

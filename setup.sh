@@ -85,7 +85,7 @@ LOG_FILE="\$SCRIPT_DIR/sync.log"  # Log file location
 # ===== SYNC SETTINGS =====
 
 # File names (usually don't need to change)
-LOCAL_CSV="today_view.csv"
+LOCAL_CSV="outputs/today_view.csv"
 EXTRACT_SCRIPT="extract_tasks.py"  # Python script to extract tasks from Things3
 
 # Google Tasks Sync (1=enabled, 0=disabled)
@@ -100,7 +100,7 @@ EOL
 chmod +x config.sh
 
 # Create necessary directories
-mkdir -p "$backup_dir"
+mkdir -p "$backup_dir" outputs secrets
 
 # Set secure permissions
 chmod 700 "$backup_dir"
@@ -117,7 +117,7 @@ if [ "$google_tasks_sync" = "1" ]; then
     echo "2. Create a new project"
     echo "3. Enable the Google Tasks API"
     echo "4. Create OAuth 2.0 credentials (Desktop app)"
-    echo "5. Download the credentials and save as 'credentials.json' in this directory"
+    echo "5. Download the credentials and save as 'secrets/credentials.json' in this directory"
     echo -e "\nAfter saving credentials.json, run: ${BLUE}./sync_today.sh${NC} to complete OAuth setup"
 fi
 
