@@ -38,3 +38,49 @@ log file `english_tasks.log`:
 
 This example runs every ten minutes.
 
+## iPad link scripts
+
+The `ipad_links` folder contains tools for delivering processed tasks to Things
+on your iPad.
+
+### `create_things_links.py`
+
+Generate Things URL links from the tasks stored in `processed_tasks.csv`. The
+script keeps track of the last processed row using `last_linked_task.txt` and
+appends new links to `generated_things_urls.txt`. Each link includes the task's
+title, notes and due date (if present) and schedules it for the **Today** list.
+
+Run it from within the `ipad_links` directory:
+
+```bash
+cd ipad_links
+python3 create_things_links.py
+```
+
+### `serve_things_links.py`
+
+Serve the generated Things links over HTTP so a Shortcuts automation on your
+iPad can fetch them. Start it from the same directory:
+
+```bash
+cd ipad_links
+python3 serve_things_links.py
+```
+
+The next unserved link is available at `http://<server-ip>:8000/next`.
+
+#### Auto-start on Ubuntu
+
+Use the provided helper script to install a `systemd` service that runs the
+server automatically:
+
+```bash
+sudo ./ipad_links/setup_link_server.sh
+```
+
+This creates and starts a service named `things-links` so the HTTP server
+launches on boot.
+
+For a reference of the Things URL scheme used by these scripts, see
+[`ipad_links/things_url_scheme.md`](ipad_links/things_url_scheme.md).
+

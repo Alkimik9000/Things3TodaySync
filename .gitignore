@@ -79,6 +79,8 @@ server/*
 !server/process_english_tasks.py
 !server/run_processor.sh
 !server/env.example
+!server/ipad_links/
+!server/ipad_links/**
 !server/outputs/
 server/outputs/*.csv
 !server/outputs/.gitkeep
