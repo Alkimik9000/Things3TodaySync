@@ -8,6 +8,7 @@ A lightweight utility to sync your Things3 Today view with Google Tasks.
 - Sync with Google Tasks every 10 minutes
 - Local backup of tasks in CSV format
 - Detailed logging for monitoring
+- Automatic log trimming (keeps only the last 24 hours)
 - macOS launch agent for continuous operation
 - Minimal resource usage
 
@@ -111,6 +112,8 @@ Run a single sync operation:
   ```bash
   tail -f sync.log
   ```
+- Old log entries are automatically removed so the file only contains the last
+  24 hours of activity.
   
 - View detailed logs:
   ```bash
