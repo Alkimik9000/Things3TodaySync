@@ -79,6 +79,9 @@ server/*
 !server/process_english_tasks.py
 !server/run_processor.sh
 !server/env.example
+!server/outputs/
+server/outputs/*.csv
+!server/outputs/.gitkeep
 
 # Python virtual environment
 venv/
