@@ -2,14 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 Extract tasks from the "Anytime" list in Things3 where both the start date and
-``due date`` are not set. The extracted tasks are saved as ``anytime_tasks.csv``
-with the same columns as the other CSV exports.
+``due date`` are not set. The extracted tasks are saved as
+``outputs/anytime_tasks.csv`` with the same columns as the other CSV exports.
 """
 
 import subprocess
 import csv
+import os
 import sys
 from typing import List, Dict
+
+OUTPUT_DIR = "outputs"
 
 
 def runAppleScript(script: str) -> str:
@@ -143,7 +146,10 @@ def extractAnytimeTasks() -> List[Dict[str, str]]:
     return tasks
 
 
-def writeToCsv(tasks: List[Dict[str, str]], filename: str = "anytime_tasks.csv") -> None:
+def writeToCsv(
+    tasks: List[Dict[str, str]],
+    filename: str = os.path.join(OUTPUT_DIR, "anytime_tasks.csv"),
+) -> None:
     """Write the given tasks to a CSV file."""
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
         fieldnames = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "Tags"]
@@ -168,7 +174,9 @@ def main() -> None:
     print("Extracting Anytime tasks from Things3...")
     tasks = extractAnytimeTasks()
     writeToCsv(tasks)
-    print(f"Successfully wrote {len(tasks)} tasks to anytime_tasks.csv")
+    print(
+        f"Successfully wrote {len(tasks)} tasks to {os.path.join(OUTPUT_DIR, 'anytime_tasks.csv')}"
+    )
 
 
 if __name__ == "__main__":
