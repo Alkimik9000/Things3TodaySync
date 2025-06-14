@@ -5,17 +5,18 @@ The script finds tasks in the ``@default`` list whose titles contain English
 letters. Each task is first written to ``fetched_tasks.csv``. After confirming
 the data is stored, it is deleted from Google Tasks and translated to Hebrew in
 Getting Things Done (GTD) style using OpenAI. The Hebrew version is appended to
-``processed_tasks.csv``. Both CSV files live in the same directory as this
-script. Optional environment variables allow uploading the CSVs to an EC2
-instance via ``scp``.
+``processed_tasks.csv``. Both CSV files are stored in ``server/outputs`` within
+the repository. Optional environment variables allow uploading the CSVs to an
+EC2 instance via ``scp``.
 """
 
 from __future__ import annotations
 
-import csv
+import pandas as pd
 import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import openai
@@ -25,10 +26,14 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/tasks"]
-TOKEN_FILE = "token.json"
-CREDENTIALS_FILE = "credentials.json"
-FETCHED_CSV = "fetched_tasks.csv"
-PROCESSED_CSV = "processed_tasks.csv"
+REPO_DIR = Path(__file__).resolve().parents[1]
+SERVER_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = SERVER_DIR / "outputs"
+TOKEN_FILE = str(REPO_DIR / "secrets" / "token.json")
+CREDENTIALS_FILE = str(REPO_DIR / "secrets" / "credentials.json")
+FETCHED_CSV = str(OUTPUT_DIR / "fetched_tasks.csv")
+PROCESSED_CSV = str(OUTPUT_DIR / "processed_tasks.csv")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_service() -> Any:
@@ -84,21 +89,14 @@ def next_task_number(csv_file: str) -> int:
     """Return the next sequential task number for ``csv_file``."""
     if not os.path.exists(csv_file):
         return 1
-    with open(csv_file, newline="", encoding="utf-8") as f:
-        return sum(1 for _ in csv.DictReader(f)) + 1
-
+    df = pd.read_csv(csv_file)
+    return len(df) + 1
 
 def append_rows(csv_file: str, rows: List[Dict[str, Optional[str]]]) -> None:
-    """Append ``rows`` to ``csv_file``, writing a header if needed."""
-    file_exists = os.path.exists(csv_file)
-    with open(csv_file, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["TaskNumber", "TaskTitle", "TaskNotes", "DueDate"]
-        )
-        if not file_exists:
-            writer.writeheader()
-        writer.writerows(rows)
-
+    """Append ``rows`` to ``csv_file``, writing a header if needed using pandas."""
+    header = not os.path.exists(csv_file)
+    df = pd.DataFrame(rows, columns=['TaskNumber', 'TaskTitle', 'TaskNotes', 'DueDate'])
+    df.to_csv(csv_file, mode='a', header=header, index=False)
 
 def upload_to_ec2(local_path: str, remote_env: str) -> None:
     """Upload ``local_path`` to EC2 using ``scp`` if ``remote_env`` is set."""

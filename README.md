@@ -8,6 +8,7 @@ A lightweight utility to sync your Things3 Today view with Google Tasks.
 - Sync with Google Tasks every 10 minutes
 - Local backup of tasks in CSV format
 - Detailed logging for monitoring
+- Automatic log trimming (keeps only the last 24 hours)
 - macOS launch agent for continuous operation
 - Minimal resource usage
 
@@ -29,7 +30,7 @@ A lightweight utility to sync your Things3 Today view with Google Tasks.
 2. Set up Python dependencies:
 
    ```bash
-   pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+   pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas
    ```
 
 3. Set up Google OAuth credentials:
@@ -111,6 +112,8 @@ Run a single sync operation:
   ```bash
   tail -f sync.log
   ```
+- Old log entries are automatically removed so the file only contains the last
+  24 hours of activity.
   
 - View detailed logs:
   ```bash
@@ -181,7 +184,7 @@ The sync script automatically handles Google Tasks integration when `GOOGLE_TASK
 4. **Python Dependencies**
    - Ensure all required packages are installed:
      ```bash
-     pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+    pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas
      ```
 
 

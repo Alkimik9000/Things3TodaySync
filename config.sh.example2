@@ -22,9 +22,9 @@ REMOTE_CSV="$REMOTE_DIR/today_view.csv" # Where to store the CSV on the server
 
 # Local files
 # CSV filenames
-LOCAL_CSV="today_view.csv"            # Today's tasks
-UPCOMING_CSV="upcoming_tasks.csv"     # Upcoming tasks
-ANYTIME_CSV="anytime_tasks.csv"       # Anytime tasks
+LOCAL_CSV="outputs/today_view.csv"            # Today's tasks
+UPCOMING_CSV="outputs/upcoming_tasks.csv"     # Upcoming tasks
+ANYTIME_CSV="outputs/anytime_tasks.csv"       # Anytime tasks
 # Path to Things3 database (default for macOS)
 THINGS_DB="$HOME/Library/Group Containers/JLMPQHK86H.com.culturedcode.ThingsMac/ThingsData-BQ2NY/Things Database.thingsdatabase/main.sqlite"
 EXTRACT_SCRIPT="extract_tasks.py"  # Script to extract tasks from Things3

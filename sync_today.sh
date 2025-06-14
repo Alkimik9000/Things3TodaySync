@@ -22,6 +22,25 @@ fi
 # Source the configuration
 . "$CONFIG_FILE"
 
+# Trim log to the last 24 hours to prevent excessive growth
+trim_log() {
+    local cutoff
+    if date -v-24H '+%Y-%m-%d %H:%M:%S' >/dev/null 2>&1; then
+        cutoff=$(date -v-24H '+%Y-%m-%d %H:%M:%S')
+    else
+        cutoff=$(date -d '24 hours ago' '+%Y-%m-%d %H:%M:%S')
+    fi
+
+    if [ -f "$LOG_FILE" ]; then
+        awk -v cutoff="$cutoff" '
+            $0 ~ /^\[/ {
+                ts = substr($0, 2, 19)
+                if (ts >= cutoff) print
+            }
+        ' "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+    fi
+}
+
 # Activate Python virtual environment if present
 if [ -d "$SCRIPT_DIR/venv" ]; then
     # shellcheck source=/dev/null
@@ -97,5 +116,8 @@ mkdir -p "$BACKUP_DIR"
 
 # Run the sync
 sync_today_view
+
+# Keep only the last 24 hours of log entries
+trim_log
 
 exit 0

@@ -6,9 +6,23 @@ This version uses a simpler approach to avoid AppleScript syntax issues.
 """
 
 import subprocess
-import csv
+import pandas as pd
+import os
 import sys
+import re
 from typing import List, Dict
+
+OUTPUT_DIR = "outputs"
+
+
+_ENG_LETTER_RE = re.compile(r"[A-Za-z]")
+
+
+def is_pure_english(text: str) -> bool:
+    """Return True if ``text`` contains only ASCII characters and at least
+    one English letter."""
+
+    return bool(text) and text.isascii() and bool(_ENG_LETTER_RE.search(text))
 
 
 def runAppleScript(script: str) -> str:
@@ -143,42 +157,54 @@ def extractTodayTasks() -> List[Dict[str, str]]:
     for i in range(1, task_count + 1):
         print(f"Extracting task {i}/{task_count}...", end="\r")
         task = getTaskDetails(i)
+        if is_pure_english(task["title"]):
+            print(f"Skipping English-only task: {task['title']}")
+            continue
         tasks.append(task)
     
     print()  # New line after progress
     return tasks
 
 
-def writeToCsv(tasks: List[Dict[str, str]], filename: str = "today_view.csv"):
-    """Write tasks to CSV file in the expected format."""
-    with open(filename, "w", newline="", encoding="utf-8") as csvfile:
-        fieldnames = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "Tags"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for task in tasks:
-            # Clean up notes - replace newlines with spaces
-            notes = task["notes"].replace("\n", " ").replace("\r", " ")
-            
-            # Format row with proper escaping
-            row = {
-                "ItemName": '"' + task["title"].replace('"', '""') + '"',
-                "ItemType": '"Task"',
-                "ResidesWithin": '"' + task["project"].replace('"', '""') + '"',
-                "Notes": '"' + notes.replace('"', '""') + '"' if notes else '""',
-                "ToDoDate": '"' + task["start_date"] + '"' if task["start_date"] else '""',
-                "DueDate": '"' + task["due_date"] + '"' if task["due_date"] else '""',
-                "Tags": '"' + task["tags"].replace('"', '""') + '"' if task["tags"] else '""'
-            }
-            writer.writerow(row)
+def writeToCsv(
+    tasks: List[Dict[str, str]],
+    filename: str = os.path.join(OUTPUT_DIR, 'today_view.csv'),
+) -> None:
+    """Write tasks to CSV file using pandas."""
 
+    rows = []
+    for task in tasks:
+        notes = task['notes'].replace('\n', ' ').replace('\r', ' ')
+        rows.append({
+            'ItemName': task['title'],
+            'ItemType': 'Task',
+            'ResidesWithin': task['project'],
+            'Notes': notes,
+            'ToDoDate': task['start_date'],
+            'DueDate': task['due_date'],
+            'Tags': task['tags'],
+        })
+
+    df = pd.DataFrame(rows, columns=[
+        'ItemName',
+        'ItemType',
+        'ResidesWithin',
+        'Notes',
+        'ToDoDate',
+        'DueDate',
+        'Tags',
+    ])
+
+    df.to_csv(filename, index=False, quoting=1)
 
 def main():
     """Main function."""
     print("Extracting Today tasks from Things3...")
     tasks = extractTodayTasks()
     writeToCsv(tasks)
-    print(f"Successfully wrote {len(tasks)} tasks to today_view.csv")
+    print(
+        f"Successfully wrote {len(tasks)} tasks to {os.path.join(OUTPUT_DIR, 'today_view.csv')}"
+    )
 
 
 if __name__ == "__main__":
