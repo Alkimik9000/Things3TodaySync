@@ -7,8 +7,11 @@ This version uses a simpler approach to avoid AppleScript syntax issues.
 
 import subprocess
 import csv
+import os
 import sys
 from typing import List, Dict
+
+OUTPUT_DIR = "outputs"
 
 
 def runAppleScript(script: str) -> str:
@@ -149,7 +152,10 @@ def extractTodayTasks() -> List[Dict[str, str]]:
     return tasks
 
 
-def writeToCsv(tasks: List[Dict[str, str]], filename: str = "today_view.csv"):
+def writeToCsv(
+    tasks: List[Dict[str, str]],
+    filename: str = os.path.join(OUTPUT_DIR, "today_view.csv"),
+) -> None:
     """Write tasks to CSV file in the expected format."""
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
         fieldnames = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "Tags"]
@@ -178,7 +184,9 @@ def main():
     print("Extracting Today tasks from Things3...")
     tasks = extractTodayTasks()
     writeToCsv(tasks)
-    print(f"Successfully wrote {len(tasks)} tasks to today_view.csv")
+    print(
+        f"Successfully wrote {len(tasks)} tasks to {os.path.join(OUTPUT_DIR, 'today_view.csv')}"
+    )
 
 
 if __name__ == "__main__":

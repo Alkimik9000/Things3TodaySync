@@ -5,8 +5,8 @@ The script finds tasks in the ``@default`` list whose titles contain English
 letters. Each task is first written to ``fetched_tasks.csv``. After confirming
 the data is stored, it is deleted from Google Tasks and translated to Hebrew in
 Getting Things Done (GTD) style using OpenAI. The Hebrew version is appended to
-``processed_tasks.csv``. Both CSV files live in the same directory as this
-script. Optional environment variables allow uploading the CSVs to an EC2
+``processed_tasks.csv``. Both CSV files are stored in the repository ``outputs``
+directory. Optional environment variables allow uploading the CSVs to an EC2
 instance via ``scp``.
 """
 
@@ -16,6 +16,7 @@ import csv
 import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import openai
@@ -25,10 +26,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/tasks"]
-TOKEN_FILE = "token.json"
-CREDENTIALS_FILE = "credentials.json"
-FETCHED_CSV = "fetched_tasks.csv"
-PROCESSED_CSV = "processed_tasks.csv"
+BASE_DIR = Path(__file__).resolve().parents[1]
+TOKEN_FILE = str(BASE_DIR / "secrets" / "token.json")
+CREDENTIALS_FILE = str(BASE_DIR / "secrets" / "credentials.json")
+FETCHED_CSV = str(BASE_DIR / "outputs" / "fetched_tasks.csv")
+PROCESSED_CSV = str(BASE_DIR / "outputs" / "processed_tasks.csv")
 
 
 def get_service() -> Any:
