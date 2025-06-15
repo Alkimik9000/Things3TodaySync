@@ -110,6 +110,28 @@ def getFormattedDate(index: int, primary_prop: str, fallback_prop: str | None = 
         return ""
 
 
+def getFormattedTime(index: int, primary_prop: str, fallback_prop: str | None = None) -> str:
+    """Return Things3 time component as HH:MM or empty string."""
+    script = f'''
+    tell application "Things3"
+        set theDate to {primary_prop} of item {index} of to dos of list "Today"
+        if theDate is missing value then
+            return ""
+        else
+            set h to hours of theDate as integer
+            set m to minutes of theDate as integer
+            set mm to text -2 thru -1 of ("0" & m as string)
+            return (h as string) & ":" & mm
+        end if
+    end tell
+    '''
+    raw_result = runAppleScript(script)
+    if not raw_result and fallback_prop:
+        script_fallback = script.replace(primary_prop, fallback_prop)
+        raw_result = runAppleScript(script_fallback)
+    return raw_result
+
+
 def getTaskDetails(index: int) -> Dict[str, str]:
     """Get all details for a single task."""
     # Get basic properties
@@ -119,6 +141,7 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     # Get dates using locale-independent ISO formatting
     start_date_str = getFormattedDate(index, "activation date")
     due_date_str = getFormattedDate(index, "due date", "deadline")
+    due_time_str = getFormattedTime(index, "due date", "deadline")
     
     # Get project
     project_script = f'''
@@ -144,6 +167,7 @@ def getTaskDetails(index: int) -> Dict[str, str]:
         "project": project,
         "start_date": start_date_str,
         "due_date": due_date_str,
+        "due_time": due_time_str,
         "tags": tags
     }
 
@@ -182,6 +206,7 @@ def writeToCsv(
             'Notes': notes,
             'ToDoDate': task['start_date'],
             'DueDate': task['due_date'],
+            'DueTime': task['due_time'],
             'Tags': task['tags'],
         })
 
@@ -192,6 +217,7 @@ def writeToCsv(
         'Notes',
         'ToDoDate',
         'DueDate',
+        'DueTime',
         'Tags',
     ])
 

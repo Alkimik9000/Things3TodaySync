@@ -18,6 +18,8 @@ process tasks from Google Tasks back into Things3.
 - **Two‑way synchronisation** – export from Things3 and import from Google Tasks.
 - **Task extraction** – grab tasks from the *Today*, *Upcoming* and
   *Anytime* lists as CSV files.
+- **Time support** – Today exports now include a `DueTime` column with the
+  task's time in 24‑hour format when available.
 - **Google Tasks integration** – `import_google_tasks.py` keeps your
   Google list aligned with the CSV data.
 - **Server processing** – optional scripts under `server/` pull English
