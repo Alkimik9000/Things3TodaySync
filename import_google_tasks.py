@@ -62,8 +62,15 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
     for _, row in df.iterrows():
         title = str(row.get('ItemName', ''))
         notes = str(row.get('Notes', ''))
-        due_raw = str(row.get('DueDate', ''))
-        due = due_raw + 'T00:00:00.000Z' if due_raw else None
+        due_date = str(row.get('DueDate', ''))
+        due_time = str(row.get('DueTime', '')).strip()
+        if due_date:
+            if due_time and due_time.lower() not in {'nan', 'none'}:
+                due = f"{due_date}T{due_time}:00.000Z"
+            else:
+                due = f"{due_date}T00:00:00.000Z"
+        else:
+            due = None
         tasks.append({'title': title, 'notes': notes, 'due': due})
     return tasks
 
