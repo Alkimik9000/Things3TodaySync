@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Things3 URL links from ``processed_tasks.csv``.
 
-This script lives in ``server/ipad_links`` and reads tasks from a
+This script lives in ``server/apple_shortcuts`` and reads tasks from a
 ``processed_tasks.csv`` file in the same directory. Only entries with a
 ``TaskNumber`` higher than the value stored in ``last_linked_task.txt`` are
 processed. Each new URL is appended to ``generated_things_urls.txt`` and printed

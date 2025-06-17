@@ -1,6 +1,6 @@
 # Generating Things URLs from Processed Tasks
 
-`server/ipad_links/create_things_links.py` converts rows in `processed_tasks.csv` into URLs that use the `things:///add` scheme. Each URL opens Things on iPadOS or macOS and pre‑populates a new task in the **Today** list.
+`server/apple_shortcuts/create_things_links.py` converts rows in `processed_tasks.csv` into URLs that use the `things:///add` scheme. Each URL opens Things and pre‑populates a new task in the **Today** list. These links can be used by Apple Shortcuts on macOS, iPadOS or iOS.
 
 ## How it works
 
@@ -17,7 +17,7 @@
 Run the script from the repository root:
 
 ```bash
-python3 server/ipad_links/create_things_links.py
+python3 server/apple_shortcuts/create_things_links.py
 ```
 
 If there are new rows, the script outputs URLs similar to:
@@ -28,10 +28,10 @@ things:///add?title=Buy%20milk&notes=Check%20expiration&deadline=2025-06-16&when
 
 ## Serving the URLs
 
-Start a tiny HTTP server so your iPad can fetch the links:
+Start a tiny HTTP server so an Apple Shortcut can fetch the links:
 
 ```bash
-python3 server/ipad_links/serve_things_links.py
+python3 server/apple_shortcuts/serve_things_links.py
 ```
 
 The server exposes `/next`, returning the next unserved link from
@@ -44,12 +44,12 @@ Run the helper script to install a `systemd` service so the server starts
 automatically at boot:
 
 ```bash
-sudo ./server/ipad_links/setup_link_server.sh
+sudo ./server/apple_shortcuts/setup_link_server.sh
 ```
 
 The service is named `things-links` and listens on port `8000` by default.
 
-## iPadOS automation
+## Apple Shortcuts automation
 
 Create an Apple Shortcut named **Fetch Things Link** that:
 
