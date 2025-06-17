@@ -22,7 +22,7 @@ process tasks from Google Tasks back into Things3.
   Google list aligned with the CSV data.
 - **Server processing** – optional scripts under `server/` pull English
   tasks from Google, translate them to Hebrew via OpenAI and prepare
-  Things links for easy re‑entry on iPad.
+  Things links for easy re‑entry via Apple Shortcuts.
 - **Launch agent / cron** – run the sync automatically every ten minutes
   with `sync_today.sh` and `com.things3.today_sync.plist`.
 - **Detailed logs** – monitor operations and keep the last 24 hours of
@@ -86,7 +86,7 @@ Run the sync manually at any time:
 CSV exports will appear in the `outputs/` directory. The Google Tasks list
 is updated accordingly. Check `sync.log` for detailed output.
 
-For server‑side processing or iPad link generation, see the
+For server‑side processing or Apple Shortcut link generation, see the
 [server README](server/README.md).
 
 ## Repository Status

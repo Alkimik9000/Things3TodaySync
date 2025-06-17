@@ -38,10 +38,10 @@ log file `english_tasks.log`:
 
 This example runs every ten minutes.
 
-## iPad link scripts
+## Apple Shortcuts scripts
 
-The `ipad_links` folder contains tools for delivering processed tasks to Things
-on your iPad.
+The `apple_shortcuts` folder contains tools for delivering processed tasks to Things
+through Apple Shortcuts on macOS, iPadOS or iOS.
 
 ### `create_things_links.py`
 
@@ -50,20 +50,20 @@ script keeps track of the last processed row using `last_linked_task.txt` and
 appends new links to `generated_things_urls.txt`. Each link includes the task's
 title, notes and due date (if present) and schedules it for the **Today** list.
 
-Run it from within the `ipad_links` directory:
+Run it from within the `apple_shortcuts` directory:
 
 ```bash
-cd ipad_links
+cd apple_shortcuts
 python3 create_things_links.py
 ```
 
 ### `serve_things_links.py`
 
-Serve the generated Things links over HTTP so a Shortcuts automation on your
-iPad can fetch them. Start it from the same directory:
+Serve the generated Things links over HTTP so an Apple Shortcut can fetch them.
+Start it from the same directory:
 
 ```bash
-cd ipad_links
+cd apple_shortcuts
 python3 serve_things_links.py
 ```
 
@@ -75,12 +75,12 @@ Use the provided helper script to install a `systemd` service that runs the
 server automatically:
 
 ```bash
-sudo ./ipad_links/setup_link_server.sh
+sudo ./apple_shortcuts/setup_link_server.sh
 ```
 
 This creates and starts a service named `things-links` so the HTTP server
 launches on boot.
 
 For a reference of the Things URL scheme used by these scripts, see
-[`ipad_links/things_url_scheme.md`](ipad_links/things_url_scheme.md).
+[`apple_shortcuts/things_url_scheme.md`](apple_shortcuts/things_url_scheme.md).
 
