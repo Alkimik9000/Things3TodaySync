@@ -11,6 +11,11 @@ import os
 import sys
 import time
 from typing import List, Dict
+
+
+def canon_title(title: str) -> str:
+    """Return a canonical representation of ``title`` for comparison."""
+    return " ".join(title.strip().split()).lower()
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Configuration
@@ -18,6 +23,14 @@ MAX_WORKERS = 12  # Number of concurrent AppleScript processes
 BATCH_SIZE = 10   # Number of tasks to process in each batch
 
 OUTPUT_DIR = "outputs"
+
+
+def load_existing_titles(csv_file: str) -> set[str]:
+    """Return a set of canonical titles from ``csv_file`` if it exists."""
+    if not os.path.exists(csv_file):
+        return set()
+    df = pd.read_csv(csv_file)
+    return {canon_title(str(t)) for t in df.get("ItemName", [])}
 
 
 
@@ -198,7 +211,15 @@ def extractUpcomingTasks() -> List[Dict[str, str]]:
                   f"ETA: {remaining/60:.1f} minutes remaining")
     
     print(f"\nCompleted processing {len(all_tasks)} tasks in {time.time() - start_time:.1f} seconds")
-    return all_tasks
+    today_csv = os.path.join(OUTPUT_DIR, 'today_view.csv')
+    existing_titles = load_existing_titles(today_csv)
+    filtered = []
+    for t in all_tasks:
+        if canon_title(t['title']) in existing_titles:
+            print(f"Skipping duplicate in Today: {t['title']}")
+            continue
+        filtered.append(t)
+    return filtered
 
 
 def writeToCsv(

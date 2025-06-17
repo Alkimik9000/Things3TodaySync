@@ -12,6 +12,19 @@ import os
 import sys
 from typing import List, Dict
 
+
+def canon_title(title: str) -> str:
+    """Return a canonical representation of ``title`` for comparison."""
+    return " ".join(title.strip().split()).lower()
+
+
+def load_existing_titles(csv_file: str) -> set[str]:
+    """Return a set of canonical titles from ``csv_file`` if it exists."""
+    if not os.path.exists(csv_file):
+        return set()
+    df = pd.read_csv(csv_file)
+    return {canon_title(str(t)) for t in df.get("ItemName", [])}
+
 OUTPUT_DIR = "outputs"
 
 
@@ -143,7 +156,16 @@ def extractAnytimeTasks() -> List[Dict[str, str]]:
             tasks.append(details)
 
     print()
-    return tasks
+    today_csv = os.path.join(OUTPUT_DIR, "today_view.csv")
+    upcoming_csv = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv")
+    existing = load_existing_titles(today_csv) | load_existing_titles(upcoming_csv)
+    filtered = []
+    for t in tasks:
+        if canon_title(t["title"]) in existing:
+            print(f"Skipping duplicate from other lists: {t['title']}")
+            continue
+        filtered.append(t)
+    return filtered
 
 
 def writeToCsv(
