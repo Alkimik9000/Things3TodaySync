@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.things3.all_lists_sync</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd "$HOME/Development/Things3-Android-Companion-App-Detailed" &amp;&amp; 
+                 source "$HOME/.zshrc" &amp;&amp; 
+                 "./sync_all_lists.sh"</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>$HOME/Development/Things3-Android-Companion-App-Detailed</string>
+    
+    <key>StandardOutPath</key>
+    <string>/tmp/things3_all_sync_stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/tmp/things3_all_sync_stderr.log</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+    
+    <!-- Run every 2 hours -->
+    <key>StartInterval</key>
+    <integer>7200</integer>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <false/>
+    
+    <key>ProcessType</key>
+    <string>Background</string>
+    
+    <key>AbandonProcessGroup</key>
+    <true/>
+    
+</dict>
+</plist> 

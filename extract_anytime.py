@@ -100,7 +100,7 @@ def getFormattedDate(index: int, property_name: str) -> str:
     try:
         y_str, m_str, d_str = [part.strip() for part in raw_result.split(",")]
         y, m, d = int(y_str), int(m_str), int(d_str)
-        return f"{y:04d}-{m:02d}-{d:02d}"
+        return "%04d" % y + "-" + "%02d" % m + "-" + "%02d" % d
     except ValueError:
         return ""
 
@@ -111,7 +111,7 @@ def getTaskDetails(index: int) -> Dict[str, str] | None:
     notes = getTaskProperty(index, "notes")
 
     start_date = getFormattedDate(index, "activation date")
-    due_date = getFormattedDate(index, "due date") or getFormattedDate(index, "deadline")
+    due_date = getFormattedDate(index, "due date")
 
     # Skip tasks that have either a start or due date
     if start_date or due_date:

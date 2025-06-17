@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pandas as pd
 import os
+import sys
 from typing import List, Dict, Optional, Any
 
 from google.auth.transport.requests import Request
@@ -19,7 +20,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/tasks"]
-CSV_FILE = os.path.join("outputs", "today_view.csv")
+OUTPUT_DIR = os.path.join("outputs")
+TODAY_CSV = os.path.join(OUTPUT_DIR, "today_view.csv")
+UPCOMING_CSV = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv")
+ANYTIME_CSV = os.path.join(OUTPUT_DIR, "anytime_tasks.csv")
 TOKEN_FILE = os.path.join("secrets", "token.json")
 CREDENTIALS_FILE = os.path.join("secrets", "credentials.json")
 
@@ -57,6 +61,8 @@ def getService() -> Any:
 
 def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
     """Read tasks from a Things3 today_view.csv file using pandas."""
+    if not os.path.exists(filename):
+        return []
     df = pd.read_csv(filename)
     tasks: List[Dict[str, Optional[str]]] = []
     for _, row in df.iterrows():
@@ -64,7 +70,18 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
         notes = str(row.get('Notes', ''))
         due_date = str(row.get('DueDate', ''))
         due_time = str(row.get('DueTime', '')).strip()
-        if due_date:
+        
+        # Filter out invalid dates (Things3 uses 4001-01-01 for "someday")
+        if due_date and due_date.lower() not in {'nan', 'none', ''}:
+            # Check if date is reasonable (between 2000 and 2100)
+            try:
+                year = int(due_date.split('-')[0])
+                if year < 2000 or year > 2100:
+                    due_date = ''  # Clear invalid date
+            except (ValueError, IndexError):
+                due_date = ''  # Clear unparseable date
+                
+        if due_date and due_date.lower() not in {'nan', 'none', ''}:
             if due_time and due_time.lower() not in {'nan', 'none'}:
                 due = f"{due_date}T{due_time}:00.000Z"
             else:
@@ -73,6 +90,45 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
             due = None
         tasks.append({'title': title, 'notes': notes, 'due': due})
     return tasks
+
+def readAllTasksWithHierarchy() -> Dict[str, List[Dict[str, Optional[str]]]]:
+    """Read all tasks from CSV files and ensure proper hierarchy.
+    
+    Returns a dict with 'today', 'upcoming', and 'anytime' lists,
+    where duplicates are removed according to hierarchy:
+    - Today tasks have highest priority
+    - Upcoming tasks exclude Today duplicates
+    - Anytime tasks exclude both Today and Upcoming duplicates
+    """
+    # Read all CSV files
+    today_tasks = readTasksFromCsv(TODAY_CSV)
+    upcoming_tasks = readTasksFromCsv(UPCOMING_CSV)
+    anytime_tasks = readTasksFromCsv(ANYTIME_CSV)
+    
+    # Build canonical title sets for deduplication
+    today_canonical = {canonTitle(t['title']) for t in today_tasks if t['title']}
+    upcoming_canonical = {canonTitle(t['title']) for t in upcoming_tasks if t['title']}
+    
+    # Filter upcoming tasks to remove Today duplicates
+    upcoming_filtered = [
+        t for t in upcoming_tasks 
+        if t['title'] and canonTitle(t['title']) not in today_canonical
+    ]
+    
+    # Update upcoming canonical set with filtered tasks
+    upcoming_canonical_filtered = {canonTitle(t['title']) for t in upcoming_filtered if t['title']}
+    
+    # Filter anytime tasks to remove Today and Upcoming duplicates
+    anytime_filtered = [
+        t for t in anytime_tasks 
+        if t['title'] and canonTitle(t['title']) not in (today_canonical | upcoming_canonical_filtered)
+    ]
+    
+    return {
+        'today': today_tasks,
+        'upcoming': upcoming_filtered,
+        'anytime': anytime_filtered
+    }
 
 def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional[str]]]) -> None:
     """Synchronise Google Tasks list with tasks from CSV.
@@ -150,12 +206,50 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
 
 
 def main() -> None:
-    if not os.path.exists(CSV_FILE):
-        raise FileNotFoundError("CSV file not found: " + CSV_FILE)
-
+    # Determine sync mode from command line arguments
+    sync_all = "--all" in sys.argv or "-a" in sys.argv
+    
     service = getService()
-    tasks: List[Dict[str, Optional[str]]] = readTasksFromCsv(CSV_FILE)
-    syncTasks(service, "@default", tasks)
+    
+    if sync_all:
+        print("Syncing all Things3 lists to Google Tasks...")
+        all_tasks = readAllTasksWithHierarchy()
+        
+        # Get or create task lists
+        tasklists = service.tasklists().list().execute()
+        list_map = {item['title']: item['id'] for item in tasklists.get('items', [])}
+        
+        # Ensure we have all required lists
+        required_lists = {
+            'Things3 - Today': 'today',
+            'Things3 - Upcoming': 'upcoming', 
+            'Things3 - Anytime': 'anytime'
+        }
+        
+        for list_name, task_key in required_lists.items():
+            if list_name not in list_map:
+                # Create the list
+                new_list = service.tasklists().insert(body={'title': list_name}).execute()
+                list_map[list_name] = new_list['id']
+                print(f"Created task list: {list_name}")
+        
+        # Sync each list
+        for list_name, task_key in required_lists.items():
+            tasks = all_tasks[task_key]
+            print(f"\nSyncing {list_name} ({len(tasks)} tasks)...")
+            syncTasks(service, list_map[list_name], tasks)
+            
+        print(f"\nTotal synced: Today={len(all_tasks['today'])}, "
+              f"Upcoming={len(all_tasks['upcoming'])}, "
+              f"Anytime={len(all_tasks['anytime'])}")
+    else:
+        # Original behavior - sync only Today to default list
+        if not os.path.exists(TODAY_CSV):
+            raise FileNotFoundError("CSV file not found: " + TODAY_CSV)
+        
+        print("Syncing Today view to Google Tasks...")
+        tasks: List[Dict[str, Optional[str]]] = readTasksFromCsv(TODAY_CSV)
+        syncTasks(service, "@default", tasks)
 
 
 if __name__ == "__main__":

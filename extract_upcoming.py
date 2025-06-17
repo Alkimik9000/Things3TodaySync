@@ -105,9 +105,21 @@ def getFormattedDate(index: int, primary_prop: str, fallback_prop: str | None = 
     end tell
     '''
     raw_result = runAppleScript(script)
-    if not raw_result and fallback_prop:
+    if (not raw_result or raw_result == "") and fallback_prop:
         # Try fallback AppleScript property
-        script_fallback = script.replace(primary_prop, fallback_prop)
+        script_fallback = f'''
+        tell application "Things3"
+            set theDate to {fallback_prop} of item {index} of to dos of list "Upcoming"
+            if theDate is missing value then
+                return ""
+            else
+                set y to year of theDate as integer
+                set m to month of theDate as integer
+                set d to day of theDate as integer
+                return (y as string) & "," & (m as string) & "," & (d as string)
+            end if
+        end tell
+        '''
         raw_result = runAppleScript(script_fallback)
     if not raw_result:
         return ""
@@ -127,7 +139,7 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     
     # Get dates using locale-independent ISO formatting
     start_date_str = getFormattedDate(index, "activation date")
-    due_date_str = getFormattedDate(index, "due date", "deadline")
+    due_date_str = getFormattedDate(index, "due date")  # Only use 'due date', no fallback
     
     # Get project
     project_script = f'''

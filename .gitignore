@@ -71,6 +71,11 @@ secrets/*.json
 server/credentials.json
 server/token.json
 
+# Server secrets - ignore actual credentials but keep examples
+server/secrets/*.json
+!server/secrets/*.example
+!server/secrets/.gitkeep
+
 # Ignore all files in server/ except example files
 server/*
 !server/README.md
@@ -84,6 +89,10 @@ server/*
 !server/outputs/
 server/outputs/*.csv
 !server/outputs/.gitkeep
+!server/secrets/
+!server/setup_and_run.sh
+!server/run_every_30s.sh
+!server/requirements.txt
 
 # Python virtual environment
 venv/

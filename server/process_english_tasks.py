@@ -29,11 +29,14 @@ SCOPES = ["https://www.googleapis.com/auth/tasks"]
 REPO_DIR = Path(__file__).resolve().parents[1]
 SERVER_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = SERVER_DIR / "outputs"
-TOKEN_FILE = str(REPO_DIR / "secrets" / "token.json")
-CREDENTIALS_FILE = str(REPO_DIR / "secrets" / "credentials.json")
+TOKEN_FILE = str(SERVER_DIR / "secrets" / "token.json")
+CREDENTIALS_FILE = str(SERVER_DIR / "secrets" / "credentials.json")
 FETCHED_CSV = str(OUTPUT_DIR / "fetched_tasks.csv")
 PROCESSED_CSV = str(OUTPUT_DIR / "processed_tasks.csv")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Configure which Google Tasks list to use
+TASKLIST_ID = os.getenv("GOOGLE_TASKS_LIST_ID", "@default")
 
 
 def get_service() -> Any:
@@ -82,7 +85,7 @@ def rephrase_hebrew(title: str) -> str:
         {"role": "user", "content": title},
     ]
     response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
-    return str(response.choices[0].message.content).strip()
+    return str(response.choices[0].message.content).strip()  # type: ignore
 
 
 def next_task_number(csv_file: str) -> int:
@@ -108,8 +111,14 @@ def upload_to_ec2(local_path: str, remote_env: str) -> None:
     ec2_host = os.environ.get("EC2_HOST")
     ec2_key = os.environ.get("EC2_KEY_PATH")
 
-    if not ec2_host or not ec2_key:
-        raise RuntimeError("EC2_HOST and EC2_KEY_PATH must be set for upload")
+    # Skip if EC2 is not properly configured or has placeholder values
+    if not ec2_host or not ec2_key or ec2_host == "your-ec2-host" or ec2_key == "/path/to/key.pem":
+        print("Skipping EC2 upload (not configured)")
+        return
+
+    if not os.path.exists(ec2_key):
+        print(f"Skipping EC2 upload (key file not found: {ec2_key})")
+        return
 
     subprocess.run(
         ["scp", "-i", ec2_key, local_path, f"{ec2_user}@{ec2_host}:{remote_csv}"],
@@ -119,7 +128,7 @@ def upload_to_ec2(local_path: str, remote_env: str) -> None:
 
 def main() -> None:
     service = get_service()
-    response = service.tasks().list(tasklist="@default").execute()
+    response = service.tasks().list(tasklist=TASKLIST_ID).execute()
     items = response.get("items", [])
 
     tasks: List[Dict[str, Any]] = []
@@ -165,7 +174,7 @@ def main() -> None:
     append_rows(PROCESSED_CSV, processed_rows)
 
     for item in tasks:
-        service.tasks().delete(tasklist="@default", task=item["id"]).execute()
+        service.tasks().delete(tasklist=TASKLIST_ID, task=item["id"]).execute()
         print(f"Removed task: {item.get('title', '')}")
 
     upload_to_ec2(FETCHED_CSV, "REMOTE_FETCHED_CSV")
