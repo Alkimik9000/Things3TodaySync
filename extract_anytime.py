@@ -10,7 +10,13 @@ import subprocess
 import pandas as pd
 import os
 import sys
+import time
 from typing import List, Dict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Configuration
+MAX_WORKERS = 12  # Number of concurrent AppleScript processes
+BATCH_SIZE = 10   # Number of tasks to process in each batch
 
 
 def canon_title(title: str) -> str:
@@ -143,24 +149,69 @@ def getTaskDetails(index: int) -> Dict[str, str] | None:
     }
 
 
+def process_task_batch(task_indices: List[int]) -> List[Dict[str, str]]:
+    """Process a batch of tasks in parallel."""
+    tasks = []
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(task_indices))) as executor:
+        future_to_index = {
+            executor.submit(getTaskDetails, i): i 
+            for i in task_indices
+        }
+        
+        for future in as_completed(future_to_index):
+            try:
+                task = future.result()
+                if task:  # Only include tasks without dates
+                    tasks.append(task)
+            except Exception as e:
+                index = future_to_index[future]
+                print(f"\nError processing task {index}: {e}", file=sys.stderr)
+    
+    return tasks
+
+
 def extractAnytimeTasks() -> List[Dict[str, str]]:
-    """Extract tasks from Anytime that lack both start and due dates."""
+    """Extract tasks from Anytime that lack both start and due dates using parallel processing."""
     task_count = getAnytimeTaskCount()
+    if task_count == 0:
+        print("No tasks found in Anytime")
+        return []
+    
     print(f"Found {task_count} tasks in Anytime")
+    print(f"Processing in batches of {BATCH_SIZE} with {MAX_WORKERS} workers...")
 
-    tasks: List[Dict[str, str]] = []
-    for i in range(1, task_count + 1):
-        print(f"Processing task {i}/{task_count}...", end="\r")
-        details = getTaskDetails(i)
-        if details:
-            tasks.append(details)
+    all_tasks = []
+    start_time = time.time()
+    
+    # Process tasks in batches
+    for batch_start in range(1, task_count + 1, BATCH_SIZE):
+        batch_end = min(batch_start + BATCH_SIZE, task_count + 1)
+        batch_indices = list(range(batch_start, batch_end))
+        
+        print(f"Processing tasks {batch_start}-{batch_end-1} of {task_count}...")
+        
+        # Process batch
+        batch_tasks = process_task_batch(batch_indices)
+        all_tasks.extend(batch_tasks)
+        
+        # Estimate time remaining
+        elapsed = time.time() - start_time
+        tasks_done = batch_end - 1
+        if tasks_done > 0:
+            time_per_task = elapsed / tasks_done
+            remaining = (task_count - tasks_done) * time_per_task
+            print(f"  Processed {tasks_done}/{task_count} tasks "
+                  f"({tasks_done/task_count:.0%}), "
+                  f"ETA: {remaining:.1f} seconds remaining")
 
-    print()
+    print(f"\nCompleted processing {len(all_tasks)} tasks in {time.time() - start_time:.1f} seconds")
+    
+    # Filter duplicates from other lists
     today_csv = os.path.join(OUTPUT_DIR, "today_view.csv")
     upcoming_csv = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv")
     existing = load_existing_titles(today_csv) | load_existing_titles(upcoming_csv)
     filtered = []
-    for t in tasks:
+    for t in all_tasks:
         if canon_title(t["title"]) in existing:
             print(f"Skipping duplicate from other lists: {t['title']}")
             continue

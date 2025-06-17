@@ -221,9 +221,9 @@ def main() -> None:
         
         # Ensure we have all required lists
         required_lists = {
-            'Things3 - Today': 'today',
-            'Things3 - Upcoming': 'upcoming', 
-            'Things3 - Anytime': 'anytime'
+            'Today': 'today',
+            'Upcoming': 'upcoming', 
+            'Anytime': 'anytime'
         }
         
         for list_name, task_key in required_lists.items():
@@ -248,6 +248,16 @@ def main() -> None:
             raise FileNotFoundError("CSV file not found: " + TODAY_CSV)
         
         print("Syncing Today view to Google Tasks...")
+        
+        # Ensure default list is named "Today"
+        try:
+            service.tasklists().update(
+                tasklist='@default',
+                body={'title': 'Today'}
+            ).execute()
+        except Exception as e:
+            print(f"Note: Could not update default list name: {e}")
+        
         tasks: List[Dict[str, Optional[str]]] = readTasksFromCsv(TODAY_CSV)
         syncTasks(service, "@default", tasks)
 

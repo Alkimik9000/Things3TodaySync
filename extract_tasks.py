@@ -10,7 +10,13 @@ import pandas as pd
 import os
 import sys
 import re
+import time
 from typing import List, Dict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Configuration
+MAX_WORKERS = 12  # Number of concurrent AppleScript processes
+BATCH_SIZE = 10   # Number of tasks to process in each batch
 
 OUTPUT_DIR = "outputs"
 
@@ -196,22 +202,66 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     }
 
 
-def extractTodayTasks() -> List[Dict[str, str]]:
-    """Extract all tasks from Today view."""
-    task_count = getTodayTaskCount()
-    print(f"Found {task_count} tasks in Today view")
-    
+def process_task_batch(task_indices: List[int]) -> List[Dict[str, str]]:
+    """Process a batch of tasks in parallel."""
     tasks = []
-    for i in range(1, task_count + 1):
-        print(f"Extracting task {i}/{task_count}...", end="\r")
-        task = getTaskDetails(i)
-        if is_pure_english(task["title"]):
-            print(f"Skipping English-only task: {task['title']}")
-            continue
-        tasks.append(task)
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(task_indices))) as executor:
+        future_to_index = {
+            executor.submit(getTaskDetails, i): i 
+            for i in task_indices
+        }
+        
+        for future in as_completed(future_to_index):
+            try:
+                task = future.result()
+                # Skip English-only tasks
+                if not is_pure_english(task["title"]):
+                    tasks.append(task)
+                else:
+                    print(f"Skipping English-only task: {task['title']}")
+            except Exception as e:
+                index = future_to_index[future]
+                print(f"\nError processing task {index}: {e}", file=sys.stderr)
     
-    print()  # New line after progress
     return tasks
+
+
+def extractTodayTasks() -> List[Dict[str, str]]:
+    """Extract all tasks from Today view using parallel processing."""
+    task_count = getTodayTaskCount()
+    if task_count == 0:
+        print("No tasks found in Today")
+        return []
+    
+    print(f"Found {task_count} tasks in Today view")
+    print(f"Processing in batches of {BATCH_SIZE} with {MAX_WORKERS} workers...")
+    
+    all_tasks = []
+    start_time = time.time()
+    
+    # Process tasks in batches
+    for batch_start in range(1, task_count + 1, BATCH_SIZE):
+        batch_end = min(batch_start + BATCH_SIZE, task_count + 1)
+        batch_indices = list(range(batch_start, batch_end))
+        
+        print(f"Processing tasks {batch_start}-{batch_end-1} of {task_count}...")
+        
+        # Process batch
+        batch_tasks = process_task_batch(batch_indices)
+        all_tasks.extend(batch_tasks)
+        
+        # Estimate time remaining
+        elapsed = time.time() - start_time
+        tasks_done = batch_end - 1
+        if tasks_done > 0:
+            time_per_task = elapsed / tasks_done
+            remaining = (task_count - tasks_done) * time_per_task
+            print(f"  Processed {tasks_done}/{task_count} tasks "
+                  f"({tasks_done/task_count:.0%}), "
+                  f"ETA: {remaining:.1f} seconds remaining")
+    
+    print(f"\nCompleted processing {len(all_tasks)} tasks in {time.time() - start_time:.1f} seconds")
+    return all_tasks
 
 
 def writeToCsv(
