@@ -1,0 +1,13 @@
+things:///add?title=%D7%A7%D7%A0%D7%99%D7%99%D7%AA%20%D7%9E%D7%96%D7%A8%D7%9F%20%D7%9C%D7%97%D7%93%D7%A8%20%D7%90%D7%91%D7%98%D7%97%D7%94%20%F0%9F%9B%8F%EF%B8%8F%F0%9F%94%92&when=today&deadline=2025-06-15
+things:///add?title=Translate%20and%20rewrite%20task%20titles%20in%20Hebrew%2C%20following%20GTD%20principles.%20Add%202%20relevant%20emojis.&when=today
+things:///add?title=%D7%91%D7%93%D7%99%D7%A7%D7%AA%20%D7%9E%D7%A9%D7%99%D7%9E%D7%94%20%D7%91%D7%90%D7%A0%D7%92%D7%9C%D7%99%D7%AA%20%D7%9C%D7%A2%D7%99%D7%91%D7%95%D7%93%20%F0%9F%93%9D%F0%9F%92%BB&when=today&notes=This%20is%20a%20test%20task%20to%20verify%20the%20server%20script%20works
+things:///add?title=%D7%94%D7%95%D7%A1%D7%A3%20%D7%9E%D7%A9%D7%94%D7%95%20%D7%9C%D7%9E%D7%A9%D7%99%D7%9E%D7%94%20%F0%9F%93%9D%F0%9F%94%8D&when=today
+things:///add?title=%D7%9C%D7%AA%D7%A7%D7%9F%20%D7%90%D7%AA%20%D7%94%D7%97%D7%93%D7%A8%20%F0%9F%A7%B9%F0%9F%94%A7&when=today&deadline=2025-06-15
+things:///add?title=%D7%A7%D7%A0%D7%99%D7%99%D7%AA%20%D7%9E%D7%96%D7%A8%D7%9F%20%D7%9C%D7%97%D7%93%D7%A8%20%D7%90%D7%91%D7%98%D7%97%D7%94%20%F0%9F%9B%8F%EF%B8%8F%F0%9F%94%92&when=today&deadline=2025-06-15
+things:///add?title=Translate%20and%20rewrite%20task%20titles%20in%20Hebrew%2C%20following%20GTD%20principles.%20Add%202%20relevant%20emojis.&when=today
+things:///add?title=%D7%91%D7%93%D7%99%D7%A7%D7%AA%20%D7%9E%D7%A9%D7%99%D7%9E%D7%94%20%D7%91%D7%90%D7%A0%D7%92%D7%9C%D7%99%D7%AA%20%D7%9C%D7%A2%D7%99%D7%91%D7%95%D7%93%20%F0%9F%93%9D%F0%9F%92%BB&when=today&notes=This%20is%20a%20test%20task%20to%20verify%20the%20server%20script%20works
+things:///add?title=%D7%94%D7%95%D7%A1%D7%A3%20%D7%9E%D7%A9%D7%94%D7%95%20%D7%9C%D7%9E%D7%A9%D7%99%D7%9E%D7%94%20%F0%9F%93%9D%F0%9F%94%8D&when=today
+things:///add?title=%D7%9C%D7%AA%D7%A7%D7%9F%20%D7%90%D7%AA%20%D7%94%D7%97%D7%93%D7%A8%20%F0%9F%A7%B9%F0%9F%94%A7&when=today&deadline=2025-06-15
+things:///add?title=%D7%A7%D7%A0%D7%99%D7%99%D7%AA%20%D7%9E%D7%A6%D7%A8%D7%9B%D7%99%D7%9D%20%D7%9C%D7%A1%D7%95%D7%A4%22%D7%A9%20%F0%9F%9B%92%F0%9F%8D%8E&when=today&notes=Need%20milk%2C%20bread%2C%20eggs%2C%20and%20vegetables&deadline=2024-06-20
+things:///add?title=%D7%A2%D7%A8%D7%99%D7%9B%D7%AA%20%D7%95%D7%99%D7%93%D7%90%D7%95%20%F0%9F%8E%A5&when=today&deadline=2025-06-18
+things:///add?title=%D7%A8%D7%9B%D7%95%D7%A9%20%D7%AA%D7%95%D7%A1%D7%A4%D7%99%D7%9D%20%D7%91%D7%90%D7%AA%D7%A8%20iHerb%20%F0%9F%9B%92%F0%9F%92%8A&when=today&notes=%D7%94%D7%95%D7%A1%D7%A3%20%D7%95%D7%99%D7%98%D7%9E%D7%99%D7%A0%D7%99%20B%20%D7%9C%D7%A9%D7%99%D7%A4%D7%95%D7%A8%20%D7%94%D7%AA%D7%A0%D7%95%D7%A2%D7%AA%D7%99%D7%95%D7%AA%20%F0%9F%92%8A%F0%9F%A6%B5%20%20https%3A%2F%2Fcheckout1.iherb.com%2Fcart&deadline=2025-05-30
