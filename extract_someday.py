@@ -2,155 +2,153 @@
 # -*- coding: utf-8 -*-
 """
 Extract Someday tasks from Things3 using AppleScript and save to CSV.
-This version uses parallel processing to improve performance.
+This version extracts ALL tasks without activation date (true someday tasks).
 """
 
 import os
 import sys
 import time
 from typing import List, Dict
+import pandas as pd
 
-from utils import (
-    runAppleScript, getTaskCount, getTaskProperty, getTaskUUID, getTaskTags,
-    getFormattedDate, getTaskProject, processTaskBatch, writeToCsv, canonTitle, loadExistingTitles
-)
-
-# Configuration
-MAX_WORKERS = 12  # Number of concurrent AppleScript processes
-BATCH_SIZE = 10   # Number of tasks to process in each batch
+from utils import runAppleScript, writeToCsv, canonTitle, loadExistingTitles
 
 OUTPUT_DIR = "outputs"
 
 
-def getSomedayTaskCount() -> int:
-    """Get count of tasks in the Someday list."""
-    return getTaskCount("Someday")
-
-
-def getTaskPropertySomeday(index: int, property_name: str) -> str:
-    """Get a specific property of a task by index from Someday list."""
-    return getTaskProperty(index, property_name, "Someday")
-
-
-def getTaskUUIDSomeday(index: int) -> str:
-    """Get UUID of a task by index from Someday list."""
-    return getTaskUUID(index, "Someday")
-
-
-def getTaskTagsSomeday(index: int) -> str:
-    """Get tags for a task from Someday list."""
-    return getTaskTags(index, "Someday")
-
-
-def getFormattedDateSomeday(index: int, property_name: str) -> str:
-    """Return Things3 date property formatted as YYYY-MM-DD or empty string."""
-    return getFormattedDate(index, property_name, "Someday")
-
-
-def getTaskDetails(index: int) -> Dict[str, str]:
-    """Get all details for a single task."""
-    # Get basic properties
-    title = getTaskPropertySomeday(index, "name")
-    notes = getTaskPropertySomeday(index, "notes")
-    uuid = getTaskUUIDSomeday(index)
+def extractAllSomedayTasks() -> List[Dict[str, str]]:
+    """Extract all tasks without activation date using a single AppleScript call."""
+    script = '''
+    tell application "Things3"
+        set output to ""
+        set taskCount to 0
+        
+        repeat with toDo in to dos
+            if status of toDo is open and activation date of toDo is missing value then
+                set taskCount to taskCount + 1
+                
+                -- Get task properties
+                set taskName to name of toDo
+                set taskNotes to notes of toDo
+                if taskNotes is missing value then set taskNotes to ""
+                set taskID to id of toDo
+                
+                -- Get due date
+                set taskDueDate to ""
+                if due date of toDo is not missing value then
+                    set d to due date of toDo
+                    set taskDueDate to (year of d as string) & "-" & text -2 thru -1 of ("0" & (month of d as integer)) & "-" & text -2 thru -1 of ("0" & day of d)
+                end if
+                
+                -- Get project
+                set taskProject to "None"
+                if project of toDo is not missing value then
+                    set taskProject to name of project of toDo
+                end if
+                
+                -- Get tags
+                set taskTags to ""
+                repeat with aTag in tags of toDo
+                    set taskTags to taskTags & name of aTag & "; "
+                end repeat
+                if taskTags ends with "; " then set taskTags to text 1 thru -3 of taskTags
+                
+                -- Build output line
+                set output to output & taskName & "|FIELD|" & taskNotes & "|FIELD|" & taskProject & "|FIELD|" & taskDueDate & "|FIELD|" & taskTags & "|FIELD|" & taskID & "|LINE|"
+            end if
+        end repeat
+        
+        return output & "|COUNT|" & taskCount
+    end tell
+    '''
     
-    # Get dates using locale-independent ISO formatting
-    start_date_str = getFormattedDateSomeday(index, "activation date")
-    due_date_str = getFormattedDateSomeday(index, "due date")
+    print("Extracting all someday tasks (without activation date)...")
+    result = runAppleScript(script)
     
-    # Get project
-    project = getTaskProject(index, "Someday")
-    
-    # Get tags
-    tags = getTaskTagsSomeday(index)
-    
-    return {
-        "title": title,
-        "notes": notes,
-        "project": project,
-        "start_date": start_date_str,
-        "due_date": due_date_str,
-        "tags": tags,
-        "task_id": uuid
-    }
-
-
-def process_task_batch_someday(task_indices: List[int]) -> List[Dict[str, str]]:
-    """Process a batch of tasks in parallel."""
-    return processTaskBatch(task_indices, getTaskDetails, MAX_WORKERS)
-
-
-def extractSomedayTasks() -> List[Dict[str, str]]:
-    """Extract all tasks from the Someday list using parallel processing."""
-    task_count = getSomedayTaskCount()
-    if task_count == 0:
-        print("No tasks found in Someday")
+    if not result:
+        print("No someday tasks found")
         return []
     
-    print("Found " + str(task_count) + " tasks in Someday")
-    print("Processing in batches of " + str(BATCH_SIZE) + " with " + str(MAX_WORKERS) + " workers...")
+    # Parse the result
+    parts = result.split("|COUNT|")
+    if len(parts) != 2:
+        print("Error parsing AppleScript result")
+        return []
     
-    all_tasks = []
-    start_time = time.time()
+    data_part = parts[0]
+    count = int(parts[1])
     
-    # Process tasks in batches
-    for batch_start in range(1, task_count + 1, BATCH_SIZE):
-        batch_end = min(batch_start + BATCH_SIZE, task_count + 1)
-        batch_indices = list(range(batch_start, batch_end))
+    print("Found " + str(count) + " someday tasks")
+    
+    # Parse tasks
+    tasks = []
+    lines = data_part.split("|LINE|")
+    for line in lines:
+        if not line.strip():
+            continue
         
-        print("Processing tasks " + str(batch_start) + "-" + str(batch_end-1) + " of " + str(task_count) + "...")
-        
-        # Process batch
-        batch_tasks = process_task_batch_someday(batch_indices)
-        all_tasks.extend(batch_tasks)
-        
-        # Estimate time remaining
-        elapsed = time.time() - start_time
-        tasks_done = len(all_tasks)
-        if tasks_done > 0:
-            time_per_task = elapsed / tasks_done
-            remaining = (task_count - tasks_done) * time_per_task
-            print("  Processed " + str(tasks_done) + "/" + str(task_count) + " tasks " +
-                  "(" + str(int(tasks_done/task_count*100)) + "%), " +
-                  "ETA: " + str(remaining/60) + " minutes remaining")
+        fields = line.split("|FIELD|")
+        if len(fields) >= 6:
+            task = {
+                "title": fields[0],
+                "notes": fields[1],
+                "project": fields[2],
+                "start_date": "",  # Someday tasks don't have start dates
+                "due_date": fields[3],
+                "tags": fields[4],
+                "task_id": fields[5]
+            }
+            tasks.append(task)
     
-    print("\nCompleted processing " + str(len(all_tasks)) + " tasks in " + str(time.time() - start_time) + " seconds")
+    print("Parsed " + str(len(tasks)) + " tasks")
     
-    # Filter duplicates from other lists
+    # Filter duplicates from other lists using TaskIDs
     today_csv = os.path.join(OUTPUT_DIR, 'today_view.csv')
     upcoming_csv = os.path.join(OUTPUT_DIR, 'upcoming_tasks.csv')
     anytime_csv = os.path.join(OUTPUT_DIR, 'anytime_tasks.csv')
     
-    existing = (loadExistingTitles(today_csv) | 
-                loadExistingTitles(upcoming_csv) | 
-                loadExistingTitles(anytime_csv))
+    # Load existing TaskIDs
+    existing_task_ids = set()
+    for csv_file in [today_csv, upcoming_csv, anytime_csv]:
+        if os.path.exists(csv_file):
+            df = pd.read_csv(csv_file)
+            df = df.fillna('')
+            existing_task_ids.update(str(task_id) for task_id in df.get("TaskID", []) if task_id)
+    
+    # Also check by canonical titles as fallback
+    existing_titles = (loadExistingTitles(today_csv) | 
+                      loadExistingTitles(upcoming_csv) | 
+                      loadExistingTitles(anytime_csv))
     
     filtered = []
-    for t in all_tasks:
-        if canonTitle(t['title']) in existing:
-            print("Skipping duplicate from other lists: " + t['title'])
+    skipped_count = 0
+    for t in tasks:
+        # Skip if TaskID exists in other lists
+        if t.get('task_id') and t['task_id'] in existing_task_ids:
+            print("Skipping duplicate (by TaskID) from other lists: " + t['title'])
+            skipped_count += 1
+            continue
+        # Also skip if title matches (fallback for tasks without IDs)
+        if canonTitle(t['title']) in existing_titles:
+            print("Skipping duplicate (by title) from other lists: " + t['title'])
+            skipped_count += 1
             continue
         filtered.append(t)
     
+    print("\nFiltered out " + str(skipped_count) + " duplicates, keeping " + str(len(filtered)) + " unique Someday tasks")
+    
     return filtered
-
-
-def writeSomedayToCsv(
-    tasks: List[Dict[str, str]],
-    filename: str = os.path.join(OUTPUT_DIR, 'someday_tasks.csv'),
-) -> None:
-    """Write tasks to CSV file with consistent format."""
-    writeToCsv(tasks, filename)
 
 
 def main():
     """Main function."""
     print("Extracting Someday tasks from Things3...")
-    tasks = extractSomedayTasks()
-    writeSomedayToCsv(tasks)
-    print(
-        "Successfully wrote " + str(len(tasks)) + " tasks to " + os.path.join(OUTPUT_DIR, 'someday_tasks.csv')
-    )
+    tasks = extractAllSomedayTasks()
+    
+    filename = os.path.join(OUTPUT_DIR, 'someday_tasks.csv')
+    writeToCsv(tasks, filename)
+    
+    print("Successfully wrote " + str(len(tasks)) + " tasks to " + filename)
 
 
 if __name__ == "__main__":

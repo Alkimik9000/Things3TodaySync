@@ -61,7 +61,7 @@ def getService() -> Any:
 
 
 def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
-    """Read tasks from a Things3 today_view.csv file using pandas, removing intra-list duplicates by canonical title."""
+    """Read tasks from a Things3 CSV file using pandas, removing intra-list duplicates by TaskID and canonical title."""
     if not os.path.exists(filename):
         return []
     df = pd.read_csv(filename)
@@ -69,9 +69,12 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
     df = df.fillna('')
     tasks: List[Dict[str, Optional[str]]] = []
     seen_titles: set[str] = set()
+    seen_task_ids: set[str] = set()
     for _, row in df.iterrows():
         title = str(row.get('ItemName', ''))
         notes = str(row.get('Notes', ''))
+        task_id = str(row.get('TaskID', ''))
+        
         # Handle "nan" string that might have been saved
         if notes.lower() == 'nan':
             notes = ''
@@ -95,11 +98,18 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
                 due = due_date + "T00:00:00.000Z"
         else:
             due = None
+        
+        # Skip duplicates by TaskID first, then by canonical title
+        if task_id and task_id in seen_task_ids:
+            continue  # Skip duplicate by TaskID
         canonical = canonTitle(title)
         if canonical in seen_titles:
             continue  # Skip duplicate by canonical title
+            
+        if task_id:
+            seen_task_ids.add(task_id)
         seen_titles.add(canonical)
-        tasks.append({'title': title, 'notes': notes, 'due': due})
+        tasks.append({'title': title, 'notes': notes, 'due': due, 'task_id': task_id})
     return tasks
 
 def readAllTasksWithHierarchy() -> Dict[str, List[Dict[str, Optional[str]]]]:
@@ -118,33 +128,50 @@ def readAllTasksWithHierarchy() -> Dict[str, List[Dict[str, Optional[str]]]]:
     anytime_tasks = readTasksFromCsv(ANYTIME_CSV)
     someday_tasks = readTasksFromCsv(SOMEDAY_CSV)
     
-    # Build canonical title sets for deduplication
+    # Build sets for deduplication using both TaskIDs and canonical titles
+    today_task_ids = {t['task_id'] for t in today_tasks if t.get('task_id')}
     today_canonical = {canonTitle(t['title']) for t in today_tasks if t['title']}
-    upcoming_canonical = {canonTitle(t['title']) for t in upcoming_tasks if t['title']}
     
     # Filter upcoming tasks to remove Today duplicates
-    upcoming_filtered = [
-        t for t in upcoming_tasks 
-        if t['title'] and canonTitle(t['title']) not in today_canonical
-    ]
+    upcoming_filtered = []
+    for t in upcoming_tasks:
+        # Skip if TaskID matches
+        if t.get('task_id') and t['task_id'] in today_task_ids:
+            continue
+        # Skip if title matches
+        if t['title'] and canonTitle(t['title']) in today_canonical:
+            continue
+        upcoming_filtered.append(t)
     
-    # Update upcoming canonical set with filtered tasks
-    upcoming_canonical_filtered = {canonTitle(t['title']) for t in upcoming_filtered if t['title']}
+    # Update sets with filtered upcoming tasks
+    upcoming_task_ids = {t['task_id'] for t in upcoming_filtered if t.get('task_id')}
+    upcoming_canonical = {canonTitle(t['title']) for t in upcoming_filtered if t['title']}
     
     # Filter anytime tasks to remove Today and Upcoming duplicates
-    anytime_filtered = [
-        t for t in anytime_tasks 
-        if t['title'] and canonTitle(t['title']) not in (today_canonical | upcoming_canonical_filtered)
-    ]
+    anytime_filtered = []
+    for t in anytime_tasks:
+        # Skip if TaskID matches
+        if t.get('task_id') and t['task_id'] in (today_task_ids | upcoming_task_ids):
+            continue
+        # Skip if title matches
+        if t['title'] and canonTitle(t['title']) in (today_canonical | upcoming_canonical):
+            continue
+        anytime_filtered.append(t)
     
-    # Update anytime canonical set with filtered tasks
-    anytime_canonical_filtered = {canonTitle(t['title']) for t in anytime_filtered if t['title']}
+    # Update sets with filtered anytime tasks
+    anytime_task_ids = {t['task_id'] for t in anytime_filtered if t.get('task_id')}
+    anytime_canonical = {canonTitle(t['title']) for t in anytime_filtered if t['title']}
     
     # Filter someday tasks to remove Today, Upcoming, and Anytime duplicates
-    someday_filtered = [
-        t for t in someday_tasks 
-        if t['title'] and canonTitle(t['title']) not in (today_canonical | upcoming_canonical_filtered | anytime_canonical_filtered)
-    ]
+    someday_filtered = []
+    for t in someday_tasks:
+        # Skip if TaskID matches
+        if t.get('task_id') and t['task_id'] in (today_task_ids | upcoming_task_ids | anytime_task_ids):
+            continue
+        # Skip if title matches
+        if t['title'] and canonTitle(t['title']) in (today_canonical | upcoming_canonical | anytime_canonical):
+            continue
+        someday_filtered.append(t)
     
     return {
         'today': today_tasks,
@@ -162,23 +189,34 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
     """
 
     # Build a mapping of existing Google Tasks (canonical title -> list of tasks)
-    existing_tasks_response = service.tasks().list(tasklist=tasklist_id).execute()
+    # Use pagination to get ALL tasks
     google_tasks_by_canonical: Dict[str, List[Dict[str, Any]]] = {}
     all_google_tasks: List[Dict[str, Any]] = []
     
-    for item in existing_tasks_response.get("items", []):
-        title_existing: str = str(item.get("title", ""))
-        canonical = canonTitle(title_existing)
-        task_info = {
-            "id": item.get("id", ""),
-            "title": title_existing,
-            "due": item.get("due"),
-            "notes": item.get("notes") or "",
-        }
-        if canonical not in google_tasks_by_canonical:
-            google_tasks_by_canonical[canonical] = []
-        google_tasks_by_canonical[canonical].append(task_info)
-        all_google_tasks.append(task_info)
+    page_token = None
+    while True:
+        if page_token:
+            existing_tasks_response = service.tasks().list(tasklist=tasklist_id, pageToken=page_token, maxResults=100).execute()
+        else:
+            existing_tasks_response = service.tasks().list(tasklist=tasklist_id, maxResults=100).execute()
+        
+        for item in existing_tasks_response.get("items", []):
+            title_existing: str = str(item.get("title", ""))
+            canonical = canonTitle(title_existing)
+            task_info = {
+                "id": item.get("id", ""),
+                "title": title_existing,
+                "due": item.get("due"),
+                "notes": item.get("notes") or "",
+            }
+            if canonical not in google_tasks_by_canonical:
+                google_tasks_by_canonical[canonical] = []
+            google_tasks_by_canonical[canonical].append(task_info)
+            all_google_tasks.append(task_info)
+        
+        page_token = existing_tasks_response.get("nextPageToken")
+        if not page_token:
+            break
 
     csv_titles_canonical: set[str] = set(
         canonTitle(str(task["title"])) for task in csv_tasks if task["title"] is not None
@@ -281,13 +319,25 @@ def syncAllListsWithCrossCheck(service: Any, all_tasks: Dict[str, List[Dict[str,
     print("\nChecking for tasks in wrong lists...")
     for list_name in required_lists:
         list_id = list_map[list_name]
-        response = service.tasks().list(tasklist=list_id).execute()
-        for item in response.get("items", []):
-            canonical = canonTitle(item.get("title", ""))
-            # If this task belongs to a different list, remove it from this one
-            if canonical in canonical_to_list and canonical_to_list[canonical] != list_name:
-                service.tasks().delete(tasklist=list_id, task=item['id']).execute()
-                print("Removed '" + item.get("title", "") + "' from " + list_name + " (belongs in " + canonical_to_list[canonical] + ")")
+        
+        # Get all tasks with pagination
+        page_token = None
+        while True:
+            if page_token:
+                response = service.tasks().list(tasklist=list_id, pageToken=page_token, maxResults=100).execute()
+            else:
+                response = service.tasks().list(tasklist=list_id, maxResults=100).execute()
+            
+            for item in response.get("items", []):
+                canonical = canonTitle(item.get("title", ""))
+                # If this task belongs to a different list, remove it from this one
+                if canonical in canonical_to_list and canonical_to_list[canonical] != list_name:
+                    service.tasks().delete(tasklist=list_id, task=item['id']).execute()
+                    print("Removed '" + item.get("title", "") + "' from " + list_name + " (belongs in " + canonical_to_list[canonical] + ")")
+            
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
     
     # Now sync each list normally
     for list_name, task_key in required_lists.items():

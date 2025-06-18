@@ -6,147 +6,65 @@ Extract tasks from the "Anytime" list in Things3 where both the start date and
 ``outputs/anytime_tasks.csv`` with the same columns as the other CSV exports.
 """
 
-import subprocess
-import pandas as pd
 import os
 import sys
 import time
 from typing import List, Dict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from utils import (
+    runAppleScript, getTaskCount, getTaskProperty, getTaskUUID, getTaskTags,
+    getFormattedDate, getTaskProject, processTaskBatch, writeToCsv, canonTitle, loadExistingTitles
+)
 
 # Configuration
 MAX_WORKERS = 12  # Number of concurrent AppleScript processes
 BATCH_SIZE = 10   # Number of tasks to process in each batch
 
-
-def canon_title(title: str) -> str:
-    """Return a canonical representation of ``title`` for comparison."""
-    return " ".join(title.strip().split()).lower()
-
-
-def load_existing_titles(csv_file: str) -> set[str]:
-    """Return a set of canonical titles from ``csv_file`` if it exists."""
-    if not os.path.exists(csv_file):
-        return set()
-    df = pd.read_csv(csv_file)
-    return {canon_title(str(t)) for t in df.get("ItemName", [])}
-
 OUTPUT_DIR = "outputs"
-
-
-def runAppleScript(script: str) -> str:
-    """Execute AppleScript and return output."""
-    try:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        print(f"AppleScript error: {e.stderr}", file=sys.stderr)
-        sys.exit(1)
 
 
 def getAnytimeTaskCount() -> int:
     """Get count of tasks in the Anytime list."""
-    script = 'tell application "Things3" to count to dos of list "Anytime"'
-    count_str = runAppleScript(script)
-    return int(count_str)
+    return getTaskCount("Anytime")
 
 
-def getTaskProperty(index: int, property_name: str) -> str:
-    """Get a specific property of a task by index."""
-    script = (
-        f'tell application "Things3" to {property_name} of item {index} of to dos of list "Anytime"'
-    )
-    result = runAppleScript(script)
-    if result == "missing value":
-        return ""
-    return result
+def getTaskPropertyAnytime(index: int, property_name: str) -> str:
+    """Get a specific property of a task by index from Anytime list."""
+    return getTaskProperty(index, property_name, "Anytime")
 
 
-def getTaskUUID(index: int) -> str:
-    script = f'tell application "Things3" to id of item {index} of to dos of list "Anytime"'
-    result = runAppleScript(script)
-    if result == "missing value":
-        return ""
-    return result
+def getTaskUUIDAnytime(index: int) -> str:
+    """Get UUID of a task by index from Anytime list."""
+    return getTaskUUID(index, "Anytime")
 
 
-def getTaskTags(index: int) -> str:
-    """Return a semicolon-separated list of tags for the task."""
-    script = f'''
-    tell application "Things3"
-        set theTags to tags of item {index} of to dos of list "Anytime"
-        set tagList to ""
-        repeat with aTag in theTags
-            set tagList to tagList & name of aTag & "; "
-        end repeat
-        return tagList
-    end tell
-    '''
-    tags = runAppleScript(script).strip()
-    if tags.endswith("; "):
-        tags = tags[:-2]
-    return tags
+def getTaskTagsAnytime(index: int) -> str:
+    """Get tags for a task from Anytime list."""
+    return getTaskTags(index, "Anytime")
 
 
-def getFormattedDate(index: int, property_name: str) -> str:
+def getFormattedDateAnytime(index: int, property_name: str) -> str:
     """Return Things3 date property formatted as YYYY-MM-DD or empty string."""
-    script = f'''
-    tell application "Things3"
-        set theDate to {property_name} of item {index} of to dos of list "Anytime"
-        if theDate is missing value then
-            return ""
-        else
-            set y to year of theDate as integer
-            set m to month of theDate as integer
-            set d to day of theDate as integer
-            return (y as string) & "," & (m as string) & "," & (d as string)
-        end if
-    end tell
-    '''
-    raw_result = runAppleScript(script)
-    if not raw_result:
-        return ""
-    try:
-        y_str, m_str, d_str = [part.strip() for part in raw_result.split(",")]
-        y, m, d = int(y_str), int(m_str), int(d_str)
-        return "%04d" % y + "-" + "%02d" % m + "-" + "%02d" % d
-    except ValueError:
-        return ""
+    return getFormattedDate(index, property_name, "Anytime")
 
 
 def getTaskDetails(index: int) -> Dict[str, str] | None:
     """Return a dictionary of task details or ``None`` if the task should be skipped."""
-    title = getTaskProperty(index, "name")
-    notes = getTaskProperty(index, "notes")
-    uuid = getTaskUUID(index)
+    title = getTaskPropertyAnytime(index, "name")
+    notes = getTaskPropertyAnytime(index, "notes")
+    uuid = getTaskUUIDAnytime(index)
 
-    start_date = getFormattedDate(index, "activation date")
-    due_date = getFormattedDate(index, "due date")
+    start_date = getFormattedDateAnytime(index, "activation date")
+    due_date = getFormattedDateAnytime(index, "due date")
 
     # Skip tasks that have either a start or due date
     if start_date or due_date:
         return None
 
-    project_script = f'''
-    tell application "Things3"
-        set theTask to item {index} of to dos of list "Anytime"
-        if project of theTask is not missing value then
-            return name of project of theTask
-        else
-            return ""
-        end if
-    end tell
-    '''
-    project = runAppleScript(project_script)
-    if not project:
-        project = "None"
+    # Get project
+    project = getTaskProject(index, "Anytime")
 
-    tags = getTaskTags(index)
+    tags = getTaskTagsAnytime(index)
 
     return {
         "title": title,
@@ -159,25 +77,9 @@ def getTaskDetails(index: int) -> Dict[str, str] | None:
     }
 
 
-def process_task_batch(task_indices: List[int]) -> List[Dict[str, str]]:
+def process_task_batch_anytime(task_indices: List[int]) -> List[Dict[str, str]]:
     """Process a batch of tasks in parallel."""
-    tasks = []
-    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(task_indices))) as executor:
-        future_to_index = {
-            executor.submit(getTaskDetails, i): i 
-            for i in task_indices
-        }
-        
-        for future in as_completed(future_to_index):
-            try:
-                task = future.result()
-                if task:  # Only include tasks without dates
-                    tasks.append(task)
-            except Exception as e:
-                index = future_to_index[future]
-                print(f"\nError processing task {index}: {e}", file=sys.stderr)
-    
-    return tasks
+    return processTaskBatch(task_indices, getTaskDetails, MAX_WORKERS)
 
 
 def extractAnytimeTasks() -> List[Dict[str, str]]:
@@ -201,7 +103,7 @@ def extractAnytimeTasks() -> List[Dict[str, str]]:
         print(f"Processing tasks {batch_start}-{batch_end-1} of {task_count}...")
         
         # Process batch
-        batch_tasks = process_task_batch(batch_indices)
+        batch_tasks = process_task_batch_anytime(batch_indices)
         all_tasks.extend(batch_tasks)
         
         # Estimate time remaining
@@ -219,56 +121,33 @@ def extractAnytimeTasks() -> List[Dict[str, str]]:
     # Filter duplicates from other lists
     today_csv = os.path.join(OUTPUT_DIR, "today_view.csv")
     upcoming_csv = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv")
-    existing = load_existing_titles(today_csv) | load_existing_titles(upcoming_csv)
+    existing = loadExistingTitles(today_csv) | loadExistingTitles(upcoming_csv)
     filtered = []
     for t in all_tasks:
-        if canon_title(t["title"]) in existing:
-            print(f"Skipping duplicate from other lists: {t['title']}")
+        if canonTitle(t["title"]) in existing:
+            print("Skipping duplicate from other lists: " + t['title'])
             continue
         filtered.append(t)
     return filtered
 
 
-def writeToCsv(
+def writeAnytimeToCsv(
     tasks: List[Dict[str, str]],
     filename: str = os.path.join(OUTPUT_DIR, "anytime_tasks.csv"),
 ) -> None:
-    """Write the given tasks to a CSV file using pandas."""
-
-    rows = []
+    """Write tasks to CSV file with consistent format."""
+    # Clean up notes formatting
     for task in tasks:
-        notes = task["notes"].replace("\n", " ").replace("\r", " ")
-        rows.append(
-            {
-                "ItemName": task["title"],
-                "ItemType": "Task",
-                "ResidesWithin": task["project"],
-                "Notes": notes,
-                "ToDoDate": task["start_date"],
-                "DueDate": task["due_date"],
-                "Tags": task["tags"],
-                "TaskID": task["task_id"],
-            }
-        )
-
-    df = pd.DataFrame(rows, columns=[
-        "ItemName",
-        "ItemType",
-        "ResidesWithin",
-        "Notes",
-        "ToDoDate",
-        "DueDate",
-        "Tags",
-        "TaskID",
-    ])
-
-    df.to_csv(filename, index=False, quoting=1)
+        if 'notes' in task:
+            task['notes'] = task['notes'].replace('\n', ' ').replace('\r', ' ')
+    
+    writeToCsv(tasks, filename)
 
 
 def main() -> None:
     print("Extracting Anytime tasks from Things3...")
     tasks = extractAnytimeTasks()
-    writeToCsv(tasks)
+    writeAnytimeToCsv(tasks)
     print(
         f"Successfully wrote {len(tasks)} tasks to {os.path.join(OUTPUT_DIR, 'anytime_tasks.csv')}"
     )
