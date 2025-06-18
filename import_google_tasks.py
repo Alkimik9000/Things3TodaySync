@@ -24,6 +24,7 @@ OUTPUT_DIR = os.path.join("outputs")
 TODAY_CSV = os.path.join(OUTPUT_DIR, "today_view.csv")
 UPCOMING_CSV = os.path.join(OUTPUT_DIR, "upcoming_tasks.csv")
 ANYTIME_CSV = os.path.join(OUTPUT_DIR, "anytime_tasks.csv")
+SOMEDAY_CSV = os.path.join(OUTPUT_DIR, "someday_tasks.csv")
 TOKEN_FILE = os.path.join("secrets", "token.json")
 CREDENTIALS_FILE = os.path.join("secrets", "credentials.json")
 
@@ -104,16 +105,18 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
 def readAllTasksWithHierarchy() -> Dict[str, List[Dict[str, Optional[str]]]]:
     """Read all tasks from CSV files and ensure proper hierarchy.
     
-    Returns a dict with 'today', 'upcoming', and 'anytime' lists,
+    Returns a dict with 'today', 'upcoming', 'anytime', and 'someday' lists,
     where duplicates are removed according to hierarchy:
     - Today tasks have highest priority
     - Upcoming tasks exclude Today duplicates
     - Anytime tasks exclude both Today and Upcoming duplicates
+    - Someday tasks exclude Today, Upcoming, and Anytime duplicates
     """
     # Read all CSV files
     today_tasks = readTasksFromCsv(TODAY_CSV)
     upcoming_tasks = readTasksFromCsv(UPCOMING_CSV)
     anytime_tasks = readTasksFromCsv(ANYTIME_CSV)
+    someday_tasks = readTasksFromCsv(SOMEDAY_CSV)
     
     # Build canonical title sets for deduplication
     today_canonical = {canonTitle(t['title']) for t in today_tasks if t['title']}
@@ -134,10 +137,20 @@ def readAllTasksWithHierarchy() -> Dict[str, List[Dict[str, Optional[str]]]]:
         if t['title'] and canonTitle(t['title']) not in (today_canonical | upcoming_canonical_filtered)
     ]
     
+    # Update anytime canonical set with filtered tasks
+    anytime_canonical_filtered = {canonTitle(t['title']) for t in anytime_filtered if t['title']}
+    
+    # Filter someday tasks to remove Today, Upcoming, and Anytime duplicates
+    someday_filtered = [
+        t for t in someday_tasks 
+        if t['title'] and canonTitle(t['title']) not in (today_canonical | upcoming_canonical_filtered | anytime_canonical_filtered)
+    ]
+    
     return {
         'today': today_tasks,
         'upcoming': upcoming_filtered,
-        'anytime': anytime_filtered
+        'anytime': anytime_filtered,
+        'someday': someday_filtered
     }
 
 def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional[str]]]) -> None:
@@ -245,7 +258,8 @@ def syncAllListsWithCrossCheck(service: Any, all_tasks: Dict[str, List[Dict[str,
     required_lists = {
         'Today': 'today',
         'Upcoming': 'upcoming', 
-        'Anytime': 'anytime'
+        'Anytime': 'anytime',
+        'Someday': 'someday'
     }
     
     for list_name, task_key in required_lists.items():
@@ -296,7 +310,8 @@ def main() -> None:
             
         print("\nTotal synced: Today=" + str(len(all_tasks['today'])) + ", " +
               "Upcoming=" + str(len(all_tasks['upcoming'])) + ", " +
-              "Anytime=" + str(len(all_tasks['anytime'])))
+              "Anytime=" + str(len(all_tasks['anytime'])) + ", " +
+              "Someday=" + str(len(all_tasks['someday'])))
     else:
         # Original behavior - sync only Today to default list
         if not os.path.exists(TODAY_CSV):
