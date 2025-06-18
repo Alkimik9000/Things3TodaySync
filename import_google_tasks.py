@@ -64,11 +64,16 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
     if not os.path.exists(filename):
         return []
     df = pd.read_csv(filename)
+    # Replace NaN values with empty strings to avoid "nan" in notes
+    df = df.fillna('')
     tasks: List[Dict[str, Optional[str]]] = []
     seen_titles: set[str] = set()
     for _, row in df.iterrows():
         title = str(row.get('ItemName', ''))
         notes = str(row.get('Notes', ''))
+        # Handle "nan" string that might have been saved
+        if notes.lower() == 'nan':
+            notes = ''
         due_date = str(row.get('DueDate', ''))
         due_time = str(row.get('DueTime', '')).strip()
         
@@ -180,8 +185,10 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
             body_update: Dict[str, Any] = {}
             if task["due"] and task["due"] != existing_info["due"]:
                 body_update["due"] = task["due"]
-            if task["notes"] and task["notes"] != existing_info["notes"]:
-                body_update["notes"] = task["notes"]
+            # Fix: Check for "nan" string and treat as empty
+            task_notes = task["notes"] if task["notes"] and task["notes"].lower() != "nan" else ""
+            if task_notes != existing_info["notes"]:
+                body_update["notes"] = task_notes
             if body_update:
                 service.tasks().patch(
                     tasklist=tasklist_id,
@@ -199,7 +206,8 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
         else:
             # Task doesn't exist - insert it
             body: Dict[str, Any] = {"title": title_current}
-            if task["notes"]:
+            # Fix: Check for "nan" string and treat as empty
+            if task["notes"] and task["notes"].lower() != "nan":
                 body["notes"] = task["notes"]
             if task["due"]:
                 body["due"] = task["due"]
@@ -227,6 +235,51 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
 
     print("Google Tasks sync completed")
 
+def syncAllListsWithCrossCheck(service: Any, all_tasks: Dict[str, List[Dict[str, Optional[str]]]]) -> None:
+    """Sync all lists and ensure no task appears in multiple lists."""
+    # Get or create task lists
+    tasklists = service.tasklists().list().execute()
+    list_map = {item['title']: item['id'] for item in tasklists.get('items', [])}
+    
+    # Ensure we have all required lists
+    required_lists = {
+        'Today': 'today',
+        'Upcoming': 'upcoming', 
+        'Anytime': 'anytime'
+    }
+    
+    for list_name, task_key in required_lists.items():
+        if list_name not in list_map:
+            # Create the list
+            new_list = service.tasklists().insert(body={'title': list_name}).execute()
+            list_map[list_name] = new_list['id']
+            print("Created task list: " + list_name)
+    
+    # Build a map of canonical titles to their designated list
+    canonical_to_list: Dict[str, str] = {}
+    for list_name, task_key in required_lists.items():
+        for task in all_tasks[task_key]:
+            if task['title']:  # Only process if title is not None
+                canonical = canonTitle(task['title'])
+                canonical_to_list[canonical] = list_name
+    
+    # First, remove tasks that are in the wrong lists
+    print("\nChecking for tasks in wrong lists...")
+    for list_name in required_lists:
+        list_id = list_map[list_name]
+        response = service.tasks().list(tasklist=list_id).execute()
+        for item in response.get("items", []):
+            canonical = canonTitle(item.get("title", ""))
+            # If this task belongs to a different list, remove it from this one
+            if canonical in canonical_to_list and canonical_to_list[canonical] != list_name:
+                service.tasks().delete(tasklist=list_id, task=item['id']).execute()
+                print("Removed '" + item.get("title", "") + "' from " + list_name + " (belongs in " + canonical_to_list[canonical] + ")")
+    
+    # Now sync each list normally
+    for list_name, task_key in required_lists.items():
+        tasks = all_tasks[task_key]
+        print("\nSyncing " + list_name + " (" + str(len(tasks)) + " tasks)...")
+        syncTasks(service, list_map[list_name], tasks)
 
 def main() -> None:
     # Determine sync mode from command line arguments
@@ -238,33 +291,12 @@ def main() -> None:
         print("Syncing all Things3 lists to Google Tasks...")
         all_tasks = readAllTasksWithHierarchy()
         
-        # Get or create task lists
-        tasklists = service.tasklists().list().execute()
-        list_map = {item['title']: item['id'] for item in tasklists.get('items', [])}
-        
-        # Ensure we have all required lists
-        required_lists = {
-            'Today': 'today',
-            'Upcoming': 'upcoming', 
-            'Anytime': 'anytime'
-        }
-        
-        for list_name, task_key in required_lists.items():
-            if list_name not in list_map:
-                # Create the list
-                new_list = service.tasklists().insert(body={'title': list_name}).execute()
-                list_map[list_name] = new_list['id']
-                print(f"Created task list: {list_name}")
-        
-        # Sync each list
-        for list_name, task_key in required_lists.items():
-            tasks = all_tasks[task_key]
-            print(f"\nSyncing {list_name} ({len(tasks)} tasks)...")
-            syncTasks(service, list_map[list_name], tasks)
+        # Use the new cross-check sync function
+        syncAllListsWithCrossCheck(service, all_tasks)
             
-        print(f"\nTotal synced: Today={len(all_tasks['today'])}, "
-              f"Upcoming={len(all_tasks['upcoming'])}, "
-              f"Anytime={len(all_tasks['anytime'])}")
+        print("\nTotal synced: Today=" + str(len(all_tasks['today'])) + ", " +
+              "Upcoming=" + str(len(all_tasks['upcoming'])) + ", " +
+              "Anytime=" + str(len(all_tasks['anytime'])))
     else:
         # Original behavior - sync only Today to default list
         if not os.path.exists(TODAY_CSV):
@@ -279,7 +311,7 @@ def main() -> None:
                 body={'title': 'Today'}
             ).execute()
         except Exception as e:
-            print(f"Note: Could not update default list name: {e}")
+            print("Note: Could not update default list name: " + str(e))
         
         tasks: List[Dict[str, Optional[str]]] = readTasksFromCsv(TODAY_CSV)
         syncTasks(service, "@default", tasks)
