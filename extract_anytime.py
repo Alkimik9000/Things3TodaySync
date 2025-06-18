@@ -67,6 +67,14 @@ def getTaskProperty(index: int, property_name: str) -> str:
     return result
 
 
+def getTaskUUID(index: int) -> str:
+    script = f'tell application "Things3" to id of item {index} of to dos of list "Anytime"'
+    result = runAppleScript(script)
+    if result == "missing value":
+        return ""
+    return result
+
+
 def getTaskTags(index: int) -> str:
     """Return a semicolon-separated list of tags for the task."""
     script = f'''
@@ -115,6 +123,7 @@ def getTaskDetails(index: int) -> Dict[str, str] | None:
     """Return a dictionary of task details or ``None`` if the task should be skipped."""
     title = getTaskProperty(index, "name")
     notes = getTaskProperty(index, "notes")
+    uuid = getTaskUUID(index)
 
     start_date = getFormattedDate(index, "activation date")
     due_date = getFormattedDate(index, "due date")
@@ -146,6 +155,7 @@ def getTaskDetails(index: int) -> Dict[str, str] | None:
         "start_date": start_date,
         "due_date": due_date,
         "tags": tags,
+        "task_id": uuid
     }
 
 
@@ -237,6 +247,7 @@ def writeToCsv(
                 "ToDoDate": task["start_date"],
                 "DueDate": task["due_date"],
                 "Tags": task["tags"],
+                "TaskID": task["task_id"],
             }
         )
 
@@ -248,6 +259,7 @@ def writeToCsv(
         "ToDoDate",
         "DueDate",
         "Tags",
+        "TaskID",
     ])
 
     df.to_csv(filename, index=False, quoting=1)

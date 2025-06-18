@@ -66,6 +66,14 @@ def getTaskProperty(index: int, property_name: str) -> str:
     return result
 
 
+def getTaskUUID(index: int) -> str:
+    script = f'tell application "Things3" to id of item {index} of to dos of list "Upcoming"'
+    result = runAppleScript(script)
+    if result == "missing value":
+        return ""
+    return result
+
+
 def getTaskTags(index: int) -> str:
     """Get tags for a task."""
     script = f'''
@@ -136,6 +144,7 @@ def getTaskDetails(index: int) -> Dict[str, str]:
     # Get basic properties
     title = getTaskProperty(index, "name")
     notes = getTaskProperty(index, "notes")
+    uuid = getTaskUUID(index)
     
     # Get dates using locale-independent ISO formatting
     start_date_str = getFormattedDate(index, "activation date")
@@ -165,7 +174,8 @@ def getTaskDetails(index: int) -> Dict[str, str]:
         "project": project,
         "start_date": start_date_str,
         "due_date": due_date_str,
-        "tags": tags
+        "tags": tags,
+        "task_id": uuid
     }
 
 
@@ -251,6 +261,7 @@ def writeToCsv(
             'ToDoDate': task['start_date'],
             'DueDate': task['due_date'],
             'Tags': task['tags'],
+            'TaskID': task['task_id'],
         })
 
     df = pd.DataFrame(rows, columns=[
@@ -261,6 +272,7 @@ def writeToCsv(
         'ToDoDate',
         'DueDate',
         'Tags',
+        'TaskID',
     ])
 
     df.to_csv(filename, index=False, quoting=1)
