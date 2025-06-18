@@ -159,7 +159,7 @@ def writeTodayToCsv(
     for task in tasks:
         if 'notes' in task:
             task['notes'] = task['notes'].replace('\n', ' ').replace('\r', ' ')
-        # Add due_time to due_date if it exists
+        # Combine due_date and due_time if both exist
         if task.get('due_time') and task.get('due_date'):
             task['due_date'] = task['due_date'] + 'T' + task['due_time'] + ':00'
     

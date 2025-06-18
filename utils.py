@@ -173,7 +173,7 @@ def processTaskBatch(task_indices: List[int], task_details_func, max_workers: in
 
 
 def writeToCsv(tasks: List[Dict[str, str]], filename: str) -> None:
-    """Write tasks to CSV file with consistent format."""
+    """Write tasks to CSV file with consistent format compatible with import_google_tasks.py."""
     if not tasks:
         print("No tasks to write to CSV")
         return
@@ -181,18 +181,34 @@ def writeToCsv(tasks: List[Dict[str, str]], filename: str) -> None:
     # Ensure output directory exists
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     
-    # Create DataFrame with consistent column order
-    columns = ["ItemName", "Notes", "Project", "StartDate", "DueDate", "Tags", "TaskID"]
+    # Create DataFrame with consistent column order (compatible with import_google_tasks.py)
+    columns = ["ItemName", "ItemType", "ResidesWithin", "Notes", "ToDoDate", "DueDate", "DueTime", "Tags", "TaskID"]
     
     # Map task dict keys to CSV column names
     csv_data = []
     for task in tasks:
+        # Split due_date into date and time if it contains time
+        due_date = task.get("due_date", "")
+        due_time = ""
+        
+        # Check if due_date contains time information
+        if due_date and "T" in due_date:
+            date_part, time_part = due_date.split("T", 1)
+            due_date = date_part
+            # Extract time without seconds/milliseconds
+            if ":" in time_part:
+                time_components = time_part.split(":")
+                if len(time_components) >= 2:
+                    due_time = time_components[0] + ":" + time_components[1]
+        
         csv_row = {
             "ItemName": task.get("title", ""),
+            "ItemType": "Task",
+            "ResidesWithin": task.get("project", "None"),
             "Notes": task.get("notes", ""),
-            "Project": task.get("project", "None"),
-            "StartDate": task.get("start_date", ""),
-            "DueDate": task.get("due_date", ""),
+            "ToDoDate": task.get("start_date", ""),
+            "DueDate": due_date,
+            "DueTime": due_time,
             "Tags": task.get("tags", ""),
             "TaskID": task.get("task_id", "")
         }

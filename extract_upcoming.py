@@ -133,7 +133,7 @@ def writeUpcomingToCsv(
     filename: str = os.path.join(OUTPUT_DIR, 'upcoming_tasks.csv'),
 ) -> None:
     """Write tasks to CSV file with consistent format."""
-    # Convert to format expected by import_google_tasks.py
+    # Clean up notes formatting
     for task in tasks:
         if 'notes' in task:
             task['notes'] = task['notes'].replace('\n', ' ').replace('\r', ' ')
