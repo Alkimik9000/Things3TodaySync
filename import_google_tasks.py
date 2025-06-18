@@ -60,11 +60,12 @@ def getService() -> Any:
 
 
 def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
-    """Read tasks from a Things3 today_view.csv file using pandas."""
+    """Read tasks from a Things3 today_view.csv file using pandas, removing intra-list duplicates by canonical title."""
     if not os.path.exists(filename):
         return []
     df = pd.read_csv(filename)
     tasks: List[Dict[str, Optional[str]]] = []
+    seen_titles: set[str] = set()
     for _, row in df.iterrows():
         title = str(row.get('ItemName', ''))
         notes = str(row.get('Notes', ''))
@@ -83,11 +84,15 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
                 
         if due_date and due_date.lower() not in {'nan', 'none', ''}:
             if due_time and due_time.lower() not in {'nan', 'none'}:
-                due = f"{due_date}T{due_time}:00.000Z"
+                due = due_date + "T" + due_time + ":00.000Z"
             else:
-                due = f"{due_date}T00:00:00.000Z"
+                due = due_date + "T00:00:00.000Z"
         else:
             due = None
+        canonical = canonTitle(title)
+        if canonical in seen_titles:
+            continue  # Skip duplicate by canonical title
+        seen_titles.add(canonical)
         tasks.append({'title': title, 'notes': notes, 'due': due})
     return tasks
 
