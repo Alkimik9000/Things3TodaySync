@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, List
 
 BASE_DIR = Path(__file__).resolve().parent
-CSV_FILE = BASE_DIR / "processed_tasks.csv"
+CSV_FILE = BASE_DIR.parent / "outputs" / "processed_tasks.csv"
 STATE_FILE = BASE_DIR / "last_linked_task.txt"
 OUTPUT_FILE = BASE_DIR / "generated_things_urls.txt"
 
@@ -58,11 +58,14 @@ def load_new_rows() -> List[Dict[str, str]]:
 
 
 def build_url(title: str, notes: str, due: str) -> str:
-    """Return a Things URL to create a task for Today."""
+    """Return a Things URL to create a task for Today with optional deadline."""
     params = {"title": title, "when": "today"}
     if notes:
         params["notes"] = notes
     if due:
+        # Convert ISO format (2025-06-15T00:00:00.000Z) to YYYY-MM-DD
+        if "T" in due:
+            due = due.split("T")[0]
         params["deadline"] = due
     query = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
     return f"things:///add?{query}"

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Script to run process_english_tasks.py every 30 seconds
+# Script to run process_english_tasks.py and create_things_links.py every 30 seconds
 
 echo "Starting Things3 Server Process Monitor"
 echo "======================================="
 echo ""
-echo "This will run process_english_tasks.py every 30 seconds."
+echo "This will run process_english_tasks.py and create_things_links.py every 30 seconds."
 echo "Press Ctrl+C to stop."
 echo ""
 
@@ -50,6 +50,12 @@ while true; do
     echo "-----------------------------------------------------------"
     
     python3 process_english_tasks.py
+    
+    echo ""
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Running create_things_links.py..."
+    echo "-----------------------------------------------------------"
+    
+    python3 apple_shortcuts/create_things_links.py
     
     echo ""
     echo "Waiting 30 seconds before next run..."
