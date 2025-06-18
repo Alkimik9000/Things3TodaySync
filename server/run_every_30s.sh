@@ -43,6 +43,20 @@ if [ -z "$VIRTUAL_ENV" ]; then
     source ../venv/bin/activate
 fi
 
+# Check if Flask server is running
+FLASK_PID=$(pgrep -f "serve_urls.py")
+if [ -z "$FLASK_PID" ]; then
+    echo "Starting Flask URL server in background..."
+    export THINGS_API_KEY=${THINGS_API_KEY:-"default-api-key"}
+    export FLASK_PORT=${FLASK_PORT:-5000}
+    export FLASK_HOST=${FLASK_HOST:-"0.0.0.0"}
+    nohup python3 apple_shortcuts/serve_urls.py > flask_server.log 2>&1 &
+    echo "Flask server started on port $FLASK_PORT"
+    sleep 2  # Give server time to start
+else
+    echo "Flask server already running (PID: $FLASK_PID)"
+fi
+
 # Main loop
 while true; do
     echo ""

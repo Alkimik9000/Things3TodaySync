@@ -2,10 +2,8 @@
 """Generate Things3 URL links from ``processed_tasks.csv``.
 
 This script lives in ``server/apple_shortcuts`` and reads tasks from a
-``processed_tasks.csv`` file in the same directory. Only entries with a
-``TaskNumber`` higher than the value stored in ``last_linked_task.txt`` are
-processed. Each new URL is appended to ``generated_things_urls.txt`` and printed
-to stdout.
+``processed_tasks.csv`` file. It adds a "GenUrl" column with generated Things3
+URLs and a "Processed" column to track which URLs have been fetched by iOS devices.
 
 Each generated link pre-populates a Things task with the title, notes and
 deadline from the CSV and schedules it for *Today*.
@@ -17,6 +15,7 @@ import csv
 import urllib.parse
 from pathlib import Path
 from typing import Dict, List
+import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent
 CSV_FILE = BASE_DIR.parent / "outputs" / "processed_tasks.csv"
@@ -39,24 +38,6 @@ def write_last_processed(num: int) -> None:
         f.write(str(num))
 
 
-def load_new_rows() -> List[Dict[str, str]]:
-    """Return rows from CSV with TaskNumber greater than the stored value."""
-    last_num = read_last_processed()
-    rows: List[Dict[str, str]] = []
-    if not CSV_FILE.exists():
-        return rows
-    with open(CSV_FILE, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            try:
-                num = int(row.get("TaskNumber", "0"))
-            except ValueError:
-                continue
-            if num > last_num:
-                rows.append(row)
-    return rows
-
-
 def build_url(title: str, notes: str, due: str) -> str:
     """Return a Things URL to create a task for Today with optional deadline."""
     params = {"title": title, "when": "today"}
@@ -71,34 +52,78 @@ def build_url(title: str, notes: str, due: str) -> str:
     return f"things:///add?{query}"
 
 
-def main() -> None:
-    rows = load_new_rows()
-    if not rows:
-        print("No new tasks to process")
+def update_csv_with_urls() -> None:
+    """Update the CSV file with GenUrl and Processed columns."""
+    if not CSV_FILE.exists():
+        print("CSV file not found")
         return
-
-    max_num = 0
-    urls: List[str] = []
-    for row in rows:
+    
+    # Read the CSV using pandas
+    df = pd.read_csv(CSV_FILE)
+    
+    # Add GenUrl and Processed columns if they don't exist
+    if 'GenUrl' not in df.columns:
+        df['GenUrl'] = ''
+    if 'Processed' not in df.columns:
+        df['Processed'] = 'No'
+    
+    # Get the last processed task number
+    last_num = read_last_processed()
+    
+    # Track if we processed any new tasks
+    processed_any = False
+    max_num = last_num
+    
+    # Process each row
+    for idx, row in df.iterrows():
         try:
-            num = int(row.get("TaskNumber", "0"))
-        except ValueError:
+            task_num = int(row.get('TaskNumber', 0))
+        except (ValueError, TypeError):
             continue
-        title = row.get("TaskTitle", "")
-        notes = row.get("TaskNotes", "")
-        due = row.get("DueDate", "")
-        url = build_url(title, notes, due)
-        urls.append(url)
-        if num > max_num:
-            max_num = num
-
-    with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
-        for url in urls:
-            f.write(url + "\n")
-            print(url)
-
-    if max_num:
+            
+        # Only process new tasks (those with TaskNumber > last_num)
+        if task_num > last_num and pd.isna(row.get('GenUrl')) or row.get('GenUrl') == '':
+            title = str(row.get('TaskTitle', ''))
+            notes = str(row.get('TaskNotes', ''))
+            due = str(row.get('DueDate', ''))
+            
+            # Handle NaN values
+            if pd.isna(notes) or notes == 'nan':
+                notes = ''
+            if pd.isna(due) or due == 'nan':
+                due = ''
+            
+            # Generate the URL
+            url = build_url(title, notes, due)
+            
+            # Update the DataFrame
+            df.at[idx, 'GenUrl'] = url
+            df.at[idx, 'Processed'] = 'No'
+            
+            # Also append to the legacy output file
+            with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
+                f.write(url + "\n")
+            
+            print(f"Generated URL for task {task_num}: {url}")
+            processed_any = True
+            
+            if task_num > max_num:
+                max_num = task_num
+    
+    # Save the updated CSV
+    df.to_csv(CSV_FILE, index=False)
+    
+    # Update the state file with the highest processed task number
+    if max_num > last_num:
         write_last_processed(max_num)
+    
+    if not processed_any:
+        print("No new tasks to process")
+
+
+def main() -> None:
+    """Main function to update CSV with URLs."""
+    update_csv_with_urls()
 
 
 if __name__ == "__main__":
