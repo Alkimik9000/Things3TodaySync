@@ -66,23 +66,28 @@ def is_english(text: str) -> bool:
     return bool(_ENG_RE.search(text))
 
 
-def rephrase_hebrew(title: str) -> str:
-    """Use OpenAI API to translate ``title`` to Hebrew in GTD style."""
+def rephrase_hebrew(text: str, add_emojis: bool = True) -> str:
+    """Use OpenAI API to translate text to Hebrew."""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY environment variable is required")
     openai.api_key = api_key
 
+    if add_emojis:
+        system_content = (
+            "You translate task titles from English to Hebrew and rewrite "
+            "them concisely following Getting Things Done principles. "
+            "Add two relevant emojis at the end of the sentence."
+        )
+    else:
+        system_content = (
+            "You are a Hebrew translator. Translate the given English text to Hebrew. "
+            "Do NOT add any emojis. Just provide a pure Hebrew translation."
+        )
+
     messages = [
-        {
-            "role": "system",
-            "content": (
-                "You translate task titles from English to Hebrew and rewrite "
-                "them concisely following Getting Things Done principles. "
-                "Add two relevant emojis at the end of the sentence."
-            ),
-        },
-        {"role": "user", "content": title},
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": text},
     ]
     response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
     return str(response.choices[0].message.content).strip()  # type: ignore
@@ -98,7 +103,12 @@ def next_task_number(csv_file: str) -> int:
 def append_rows(csv_file: str, rows: List[Dict[str, Optional[str]]]) -> None:
     """Append ``rows`` to ``csv_file``, writing a header if needed using pandas."""
     header = not os.path.exists(csv_file)
-    df = pd.DataFrame(rows, columns=['TaskNumber', 'TaskTitle', 'TaskNotes', 'DueDate'])
+    # Use all columns from the rows
+    if rows:
+        columns = list(rows[0].keys())
+    else:
+        columns = ['TaskNumber', 'TaskTitle', 'TaskNotes', 'DueDate']
+    df = pd.DataFrame(rows, columns=columns)
     df.to_csv(csv_file, mode='a', header=header, index=False)
 
 def upload_to_ec2(local_path: str, remote_env: str) -> None:
@@ -159,12 +169,18 @@ def main() -> None:
                 "DueDate": due,
             }
         )
-        hebrew = rephrase_hebrew(title)
+        hebrew_title = rephrase_hebrew(title, add_emojis=True)
+        
+        # Translate notes to Hebrew if they exist and contain English
+        hebrew_notes = notes
+        if notes and is_english(notes):
+            hebrew_notes = rephrase_hebrew(notes, add_emojis=False)
+        
         processed_rows.append(
             {
                 "TaskNumber": number,
-                "TaskTitle": hebrew,
-                "TaskNotes": notes,
+                "TaskTitle": hebrew_title,
+                "TaskNotes": hebrew_notes,
                 "DueDate": due,
             }
         )

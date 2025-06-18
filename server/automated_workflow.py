@@ -117,8 +117,8 @@ class WorkflowAutomator:
         import re
         return bool(re.search(r'[A-Za-z]', title))
     
-    def translateToHebrew(self, title: str) -> str:
-        """Translate English task to Hebrew with emojis using OpenAI."""
+    def translateToHebrew(self, title: str, add_emojis: bool = True) -> str:
+        """Translate English text to Hebrew using OpenAI."""
         import openai
         
         api_key = os.getenv("OPENAI_API_KEY")
@@ -127,25 +127,33 @@ class WorkflowAutomator:
         
         openai.api_key = api_key
         
+        if add_emojis:
+            system_content = (
+                "You are a Hebrew translator. Translate the given English task title to Hebrew. "
+                "Make it concise and action-oriented following Getting Things Done (GTD) principles. "
+                "Add exactly two relevant emojis at the end. The output must be in Hebrew language."
+            )
+            user_content = f"Translate to Hebrew: {title}"
+        else:
+            system_content = (
+                "You are a Hebrew translator. Translate the given English text to Hebrew. "
+                "Do NOT add any emojis. Just provide a pure Hebrew translation. "
+                "The output must be in Hebrew language only."
+            )
+            user_content = f"Translate to Hebrew: {title}"
+        
         messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a Hebrew translator. Translate the given English task title to Hebrew. "
-                    "Make it concise and action-oriented following Getting Things Done (GTD) principles. "
-                    "Add exactly two relevant emojis at the end. The output must be in Hebrew language."
-                ),
-            },
-            {"role": "user", "content": f"Translate to Hebrew: {title}"},
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": user_content},
         ]
         
         try:
             response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
             content = response.choices[0].message.content  # type: ignore
-            return str(content).strip() if content else title + " 📝✨"
+            return str(content).strip() if content else (title + " 📝✨" if add_emojis else title)
         except Exception as e:
             logger.error("Translation failed for '%s': %s", title, e)
-            return title + " 📝✨"  # Fallback with emojis
+            return title + " 📝✨" if add_emojis else title
     
     def getNewEnglishTasks(self) -> List[Dict[str, Any]]:
         """Get new English tasks from Google Tasks that haven't been processed."""
@@ -185,15 +193,22 @@ class WorkflowAutomator:
             
             logger.info("Processing task: %s", title)
             
-            # Translate to Hebrew
-            hebrew_title = self.translateToHebrew(title)
+            # Translate title to Hebrew with emojis
+            hebrew_title = self.translateToHebrew(title, add_emojis=True)
+            
+            # Translate notes to Hebrew without emojis if they exist and contain English
+            hebrew_notes = notes
+            if notes and self.isEnglishTask(notes):
+                logger.info("Translating notes from English to Hebrew")
+                hebrew_notes = self.translateToHebrew(notes, add_emojis=False)
             
             # Create processed task data
             processed_task = {
                 "id": task_id,
                 "original_title": title,
                 "hebrew_title": hebrew_title,
-                "notes": notes,
+                "original_notes": notes,
+                "hebrew_notes": hebrew_notes,
                 "due_date": due,
                 "processed_at": datetime.now().isoformat()
             }
@@ -202,6 +217,10 @@ class WorkflowAutomator:
             self.processed_task_ids.add(task_id)
             
             logger.info("Translated '%s' to '%s'", title, hebrew_title)
+            if notes != hebrew_notes:
+                logger.info("Translated notes from '%s' to '%s'", notes[:50] + "..." if len(notes) > 50 else notes, 
+                           hebrew_notes[:50] + "..." if len(hebrew_notes) > 50 else hebrew_notes)
+            
             return processed_task
             
         except Exception as e:
@@ -211,7 +230,7 @@ class WorkflowAutomator:
     def generateThingsUrl(self, processed_task: Dict[str, Any]) -> str:
         """Generate Things3 URL for processed task."""
         title = processed_task["hebrew_title"]
-        notes = processed_task["notes"]
+        notes = processed_task.get("hebrew_notes", "")
         due = processed_task["due_date"]
         
         params = {"title": title, "when": "today"}
@@ -277,20 +296,28 @@ class WorkflowAutomator:
             return
         
         try:
+            # Get the next task number
+            processed_csv = OUTPUT_DIR / "processed_tasks.csv"
+            if processed_csv.exists():
+                existing_df = pd.read_csv(processed_csv)
+                next_num = len(existing_df) + 1
+            else:
+                next_num = 1
+            
             # Prepare data for CSV
             csv_data = []
-            for i, task in enumerate(processed_tasks, 1):
+            for i, task in enumerate(processed_tasks, next_num):
                 csv_data.append({
                     "TaskNumber": f"{i:04d}",
                     "TaskTitle": task["hebrew_title"],
-                    "TaskNotes": task["notes"],
+                    "TaskNotes": task.get("hebrew_notes", ""),
                     "DueDate": task["due_date"],
                     "OriginalTitle": task["original_title"],
+                    "OriginalNotes": task.get("original_notes", ""),
                     "ProcessedAt": task["processed_at"]
                 })
             
             # Save to processed tasks CSV
-            processed_csv = OUTPUT_DIR / "processed_tasks.csv"
             df = pd.DataFrame(csv_data)
             
             # Append to existing CSV or create new one
