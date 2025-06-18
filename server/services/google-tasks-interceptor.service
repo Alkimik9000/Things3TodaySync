@@ -1,0 +1,31 @@
+[Unit]
+Description=Google Tasks to Things3 Interceptor Service
+Documentation=https://github.com/Alkimik9000/Things3TodaySync
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Things3-Android-Companion-App-Detailed/server
+Environment="PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/ubuntu/Things3-Android-Companion-App-Detailed/server/.env
+ExecStartPre=/bin/bash -c 'source /home/ubuntu/Things3-Android-Companion-App-Detailed/venv/bin/activate'
+ExecStart=/home/ubuntu/Things3-Android-Companion-App-Detailed/venv/bin/python /home/ubuntu/Things3-Android-Companion-App-Detailed/server/automated_workflow.py
+Restart=always
+RestartSec=30
+StandardOutput=append:/home/ubuntu/Things3-Android-Companion-App-Detailed/server/logs/google-tasks-interceptor.log
+StandardError=append:/home/ubuntu/Things3-Android-Companion-App-Detailed/server/logs/google-tasks-interceptor.error.log
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/Things3-Android-Companion-App-Detailed/server/outputs
+ReadWritePaths=/home/ubuntu/Things3-Android-Companion-App-Detailed/server/logs
+ReadWritePaths=/home/ubuntu/Things3-Android-Companion-App-Detailed/server/processed_task_ids.json
+ReadWritePaths=/home/ubuntu/Things3-Android-Companion-App-Detailed/server/secrets/token.json
+
+[Install]
+WantedBy=multi-user.target 

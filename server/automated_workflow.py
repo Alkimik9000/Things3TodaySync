@@ -131,17 +131,17 @@ class WorkflowAutomator:
             {
                 "role": "system",
                 "content": (
-                    "You translate task titles from English to Hebrew and rewrite "
-                    "them concisely following Getting Things Done principles. "
-                    "Add two relevant emojis at the end of the sentence."
+                    "You are a Hebrew translator. Translate the given English task title to Hebrew. "
+                    "Make it concise and action-oriented following Getting Things Done (GTD) principles. "
+                    "Add exactly two relevant emojis at the end. The output must be in Hebrew language."
                 ),
             },
-            {"role": "user", "content": title},
+            {"role": "user", "content": f"Translate to Hebrew: {title}"},
         ]
         
         try:
             response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
-            content = response.choices[0].message.content
+            content = response.choices[0].message.content  # type: ignore
             return str(content).strip() if content else title + " 📝✨"
         except Exception as e:
             logger.error("Translation failed for '%s': %s", title, e)
