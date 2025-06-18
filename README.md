@@ -91,6 +91,9 @@ is updated accordingly. Check `sync.log` for detailed output.
 For server‑side processing or Apple Shortcut link generation, see the
 [server README](server/README.md).
 
+## Documentation
+For detailed project requirements, see [PRD.md](PRD.md).
+
 ## Repository Status
 
 The name *Things3TodaySync* reflects the original single‑direction export.
