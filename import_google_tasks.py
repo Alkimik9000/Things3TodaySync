@@ -12,6 +12,7 @@ from __future__ import annotations
 import pandas as pd
 import os
 import sys
+import json
 from typing import List, Dict, Optional, Any
 
 from google.auth.transport.requests import Request
@@ -27,6 +28,7 @@ ANYTIME_CSV = os.path.join(OUTPUT_DIR, "anytime_tasks.csv")
 SOMEDAY_CSV = os.path.join(OUTPUT_DIR, "someday_tasks.csv")
 TOKEN_FILE = os.path.join("secrets", "token.json")
 CREDENTIALS_FILE = os.path.join("secrets", "credentials.json")
+MAPPING_FILE = os.path.join(OUTPUT_DIR, "task_mapping.json")
 
 # Utility to canonicalise titles for reliable comparison
 
@@ -38,6 +40,19 @@ def canonTitle(title: str) -> str:  # noqa: N802 (keep camelCase rule)
     other Unicode characters are left intact.
     """
     return " ".join(title.strip().split()).lower()
+
+def loadTaskMapping() -> Dict[str, Dict[str, str]]:
+    """Load the mapping between Things3 UUIDs and Google Task IDs."""
+    if os.path.exists(MAPPING_FILE):
+        with open(MAPPING_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def saveTaskMapping(mapping: Dict[str, Dict[str, str]]) -> None:
+    """Save the task mapping to file."""
+    os.makedirs(os.path.dirname(MAPPING_FILE), exist_ok=True)
+    with open(MAPPING_FILE, 'w') as f:
+        json.dump(mapping, f, indent=2)
 
 def getService() -> Any:
     """Authorize the user and return a Google Tasks service instance."""
@@ -78,24 +93,32 @@ def readTasksFromCsv(filename: str) -> List[Dict[str, Optional[str]]]:
         # Handle "nan" string that might have been saved
         if notes.lower() == 'nan':
             notes = ''
+        
+        # Get both date columns - ToDoDate and DueDate
+        # Sometimes DueDate has incorrect dates (one month behind)
+        # so we'll prioritize ToDoDate if available
+        todo_date = str(row.get('ToDoDate', ''))
         due_date = str(row.get('DueDate', ''))
         due_time = str(row.get('DueTime', '')).strip()
         
+        # Use ToDoDate if available, otherwise fall back to DueDate
+        date_to_use = todo_date if todo_date and todo_date.lower() not in {'nan', 'none', ''} else due_date
+        
         # Filter out invalid dates (Things3 uses 4001-01-01 for "someday")
-        if due_date and due_date.lower() not in {'nan', 'none', ''}:
+        if date_to_use and date_to_use.lower() not in {'nan', 'none', ''}:
             # Check if date is reasonable (between 2000 and 2100)
             try:
-                year = int(due_date.split('-')[0])
+                year = int(date_to_use.split('-')[0])
                 if year < 2000 or year > 2100:
-                    due_date = ''  # Clear invalid date
+                    date_to_use = ''  # Clear invalid date
             except (ValueError, IndexError):
-                due_date = ''  # Clear unparseable date
+                date_to_use = ''  # Clear unparseable date
                 
-        if due_date and due_date.lower() not in {'nan', 'none', ''}:
+        if date_to_use and date_to_use.lower() not in {'nan', 'none', ''}:
             if due_time and due_time.lower() not in {'nan', 'none'}:
-                due = due_date + "T" + due_time + ":00.000Z"
+                due = date_to_use + "T" + due_time + ":00.000Z"
             else:
-                due = due_date + "T00:00:00.000Z"
+                due = date_to_use + "T00:00:00.000Z"
         else:
             due = None
         
@@ -182,11 +205,14 @@ def readAllTasksWithHierarchy() -> Dict[str, List[Dict[str, Optional[str]]]]:
 
 def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional[str]]]) -> None:
     """Synchronise Google Tasks list with tasks from CSV.
-
+    
     1. Insert or update tasks that exist in the CSV but not in Google Tasks.
     2. Delete tasks from Google Tasks that are no longer present in the CSV.
     3. Remove duplicates in Google Tasks if they exist.
     """
+    
+    # Load task mapping
+    task_mapping = loadTaskMapping()
 
     # Build a mapping of existing Google Tasks (canonical title -> list of tasks)
     # Use pagination to get ALL tasks
@@ -262,8 +288,18 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
                 body["notes"] = task["notes"]
             if task["due"]:
                 body["due"] = task["due"]
-            service.tasks().insert(tasklist=tasklist_id, body=body).execute()
+            result = service.tasks().insert(tasklist=tasklist_id, body=body).execute()
             print("Inserted task: " + title_current)
+            
+            # Save mapping if task has a Things3 UUID
+            things_uuid = task.get("task_id")
+            google_id = result.get("id")
+            if things_uuid and google_id:
+                task_mapping[things_uuid] = {
+                    "google_id": google_id,
+                    "title": title_current,
+                    "last_synced": result.get("updated", "")
+                }
 
     # Remove tasks that are not in CSV
     for canonical_existing, task_list in google_tasks_by_canonical.items():
@@ -284,6 +320,8 @@ def syncTasks(service: Any, tasklist_id: str, csv_tasks: List[Dict[str, Optional
         print("──────────────────────────\n")
     # ----- End debug output -----
 
+    # Save the updated mapping
+    saveTaskMapping(task_mapping)
     print("Google Tasks sync completed")
 
 def syncAllListsWithCrossCheck(service: Any, all_tasks: Dict[str, List[Dict[str, Optional[str]]]]) -> None:

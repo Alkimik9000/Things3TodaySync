@@ -1,106 +1,161 @@
-# Things3 ↔ Google Tasks Sync
+# Things3 ↔ Google Tasks Local Sync
 
-**A cross-platform bridge for your tasks.** This project began as a simple script to export the
-Things3 *Today* view. It has evolved into a two‑way workflow that keeps
-Things3 in sync with Google Tasks, enabling access to your to‑dos on any
-device.
+**A local macOS solution for syncing your tasks.** This project provides two-way 
+synchronization between Things3 and Google Tasks, enabling access to your to-dos 
+on any device while running entirely on your Mac.
 
-## Why?
+## Features
 
-Things3 works beautifully on macOS and iOS but it is locked to the Apple
-ec osystem. I needed my task list on Android and other platforms, so this
-project was born. The scripts here extract tasks from Things3 using
-AppleScript and Python, synchronise them with Google Tasks and optionally
-process tasks from Google Tasks back into Things3.
-
-## Key Features
-
-- **Two‑way synchronisation** – export from Things3 and import from Google Tasks.
-- **Task extraction** – grab tasks from the *Today*, *Upcoming* and
-  *Anytime* lists as CSV files.
-- **Time support** – Today exports now include a `DueTime` column with the
-  task's time in 24‑hour format when available.
-- **Google Tasks integration** – `import_google_tasks.py` keeps your
-  Google list aligned with the CSV data.
-- **Server processing** – optional scripts under `server/` pull English
-  tasks from Google, translate them to Hebrew via OpenAI and prepare
-  Things links for easy re‑entry via Apple Shortcuts.
-- **Launch agent / cron** – run the sync automatically every ten minutes
-  with `sync_today.sh` and `com.things3.today_sync.plist`.
-- **Detailed logs** – monitor operations and keep the last 24 hours of
-  output.
+- **Two-way synchronization** – Changes in Google Tasks sync back to Things3
+- **Completed task sync** – Tasks completed in Google Tasks are marked complete in Things3
+- **Multi-list support** – Sync Today, Upcoming, Anytime, and Someday lists
+- **English task processing** – Automatically translate English tasks to Hebrew (optional)
+- **Local automation** – Runs entirely on your Mac with LaunchAgent scheduling
+- **Smart duplicate handling** – Prevents duplicate tasks across lists
 
 ## Prerequisites
 
 - **macOS** with Things3 installed
-- **Python 3.x** (included with macOS)
+- **Python 3.x** with pip
 - Google account for Google Tasks
-
-Optional server features require Python 3 on Linux and the
-packages noted in [`server/README.md`](server/README.md).
+- Things3 auth token (see setup)
 
 ## Setup
 
-1. Clone this repository
-
+1. Clone this repository and navigate to it:
    ```bash
-   git clone https://github.com/yourusername/Things3TodaySync.git
-   cd Things3TodaySync
+   git clone https://github.com/yourusername/Things3-Android-Companion-App.git
+   cd Things3-Android-Companion-App
    ```
 
-2. Install dependencies
-
+2. Run the setup script:
    ```bash
-   pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas openai
+   ./setup.sh
    ```
 
-3. Copy the example configuration and edit as needed
+3. Get your Things3 auth token:
+   - Open Things3 on Mac
+   - Go to **Things** → **Settings** → **General**
+   - Click **Enable Things URLs** → **Manage**
+   - Copy your auth token
 
+4. Set the auth token in your environment:
    ```bash
-   cp config.sh.example config.sh
-   nano config.sh
+   export THINGS_AUTH_TOKEN="your-token-here"
+   echo 'export THINGS_AUTH_TOKEN="your-token-here"' >> ~/.zshrc
    ```
 
-4. Place Google OAuth credentials in `secrets/credentials.json` and run
-   the sync once to create `secrets/token.json`
-
+5. (Optional) For English to Hebrew translation, set your OpenAI API key:
    ```bash
-   ./sync_today.sh
+   export OPENAI_API_KEY="your-key-here"
+   echo 'export OPENAI_API_KEY="your-key-here"' >> ~/.zshrc
    ```
 
-   A browser window will prompt for Google authorisation.
+## Installation
 
-5. (Optional) Install the launch agent to run every 10 minutes
-
-   ```bash
-   cp com.things3.today_sync.plist ~/Library/LaunchAgents/
-   launchctl load ~/Library/LaunchAgents/com.things3.today_sync.plist
-   ```
-
-## Usage
-
-Run the sync manually at any time:
+Install the automated sync to run every 30 minutes:
 
 ```bash
-./sync_today.sh
+./install_local_sync.sh
 ```
 
-CSV exports will appear in the `outputs/` directory. The Google Tasks list
-is updated accordingly. Check `sync.log` for detailed output.
+The sync will now run automatically in the background. To check status:
+```bash
+launchctl list | grep com.things3.local_sync
+```
 
-For server‑side processing or Apple Shortcut link generation, see the
-[server README](server/README.md).
+## Manual Usage
 
-## Documentation
-For detailed project requirements, see [PRD.md](PRD.md).
+Run the complete sync workflow manually:
+```bash
+./local_sync_workflow.sh
+```
 
-## Repository Status
+This will:
+1. Extract tasks from Things3 to CSV files
+2. Sync tasks to Google Tasks
+3. Sync changes from Google Tasks back to Things3
+4. Process English tasks (if OpenAI key is set)
 
-The name *Things3TodaySync* reflects the original single‑direction export.
-The project now supports two‑way synchronisation with Google Tasks and may
-be renamed in future to better reflect its scope.
+## How It Works
+
+### Workflow Steps
+
+1. **Extract** - AppleScript extracts tasks from Things3 into CSV files
+2. **Upload** - Tasks are synced to Google Tasks, maintaining mappings
+3. **Monitor** - Changes in Google Tasks are detected
+4. **Update** - Things3 is updated via URL scheme for:
+   - Due date changes
+   - Task completions (marks complete in Things3, then deletes from Google)
+   - Deleted tasks
+
+### File Structure
+
+```
+outputs/
+├── today_view.csv         # Extracted Today tasks
+├── upcoming_tasks.csv     # Extracted Upcoming tasks
+├── anytime_tasks.csv      # Extracted Anytime tasks
+├── someday_tasks.csv      # Extracted Someday tasks
+├── task_mapping.json      # Maps Things3 UUIDs to Google Task IDs
+├── sync_state.json        # Tracks task states for change detection
+└── local_sync_workflow.log # Sync operation logs
+```
+
+## Configuration
+
+Edit `config.sh` to customize:
+- `GOOGLE_TASKS_SYNC` - Set to 1 to sync all lists (not just Today)
+- Log retention settings
+- File paths
+
+## Testing
+
+Run the test suite to verify your setup:
+```bash
+python3 test_local_workflow.py
+```
+
+This tests:
+- Things3 to Google Tasks sync
+- All lists synchronization
+- Completed task sync
+- English task processing (if configured)
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"No Things3 UUID found"** - Normal for tasks created directly in Google Tasks
+2. **Auth token errors** - Verify your Things3 auth token is correct
+3. **Sync not running** - Check LaunchAgent status with `launchctl list`
+
+### View Logs
+
+```bash
+# Main workflow log
+tail -f outputs/local_sync_workflow.log
+
+# Two-way sync details
+tail -f outputs/two_way_sync.log
+```
+
+### Reset Sync
+
+To start fresh:
+```bash
+rm outputs/task_mapping.json outputs/sync_state.json
+./local_sync_workflow.sh
+```
+
+## Uninstall
+
+To remove the automated sync:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.things3.local_sync.plist
+rm ~/Library/LaunchAgents/com.things3.local_sync.plist
+```
 
 ## License
 
-This project is licensed under the MIT License. See
-[LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
